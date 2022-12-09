@@ -1,35 +1,34 @@
 package concurrency
 
 import (
-	"context"
+	"github.com/hashicorp/go-multierror"
 	"sync"
 	"sync/atomic"
 )
 
 type WorkerGroup struct {
-	sync.Mutex
-	ctx            context.Context // context
-	collector      *errorCollector // error collector
-	q              *Queue          // task queue
-	taskDone       int64           // completed tasks
-	taskTotal      int64           // total tasks
-	maxConcurrency int64           // max concurrent coroutine
-	done           chan bool
+	mu        *sync.Mutex
+	err       error
+	config    *Config
+	done      chan bool
+	q         *Queue
+	taskDone  int64
+	taskTotal int64
 }
 
 // NewWorkerGroup 新建一个任务集
 // threads: 最大并发协程数量
-func NewWorkerGroup(ctx context.Context, threads int64) *WorkerGroup {
-	if threads <= 0 {
-		threads = 8
+func NewWorkerGroup(options ...Option) *WorkerGroup {
+	config := new(Config).init()
+	for _, fn := range options {
+		fn(config)
 	}
 	o := &WorkerGroup{
-		ctx:            ctx,
-		collector:      &errorCollector{mu: &sync.RWMutex{}},
-		q:              NewQueue(),
-		maxConcurrency: threads,
-		taskDone:       0,
-		done:           make(chan bool),
+		mu:       &sync.Mutex{},
+		config:   config,
+		q:        NewQueue(),
+		taskDone: 0,
+		done:     make(chan bool),
 	}
 	return o
 }
@@ -47,6 +46,15 @@ func (c *WorkerGroup) Push(jobs ...Job) {
 	}
 }
 
+func (c *WorkerGroup) appendError(err error) {
+	if err == nil {
+		return
+	}
+	c.mu.Lock()
+	c.err = multierror.Append(err)
+	c.mu.Unlock()
+}
+
 func (c *WorkerGroup) do() {
 	if atomic.LoadInt64(&c.taskDone) == atomic.LoadInt64(&c.taskTotal) {
 		c.done <- true
@@ -55,11 +63,10 @@ func (c *WorkerGroup) do() {
 
 	if item := c.q.Front(); item != nil {
 		go func(job Job) {
-			if !isCanceled(c.ctx) {
-				if err := job.Do(job.Args); err != nil {
-					c.collector.MarkFailedWithError(err)
+			if !isCanceled(c.config.Context) {
+				if err := c.config.Caller(job); err != nil {
+					c.appendError(err)
 				} else {
-					c.collector.MarkSucceed()
 				}
 			}
 			atomic.AddInt64(&c.taskDone, 1)
@@ -75,15 +82,16 @@ func (c *WorkerGroup) StartAndWait() {
 		return
 	}
 
-	var co = min(c.maxConcurrency, taskTotal)
+	var co = min(c.config.Concurrency, taskTotal)
 	for i := int64(0); i < co; i++ {
 		c.do()
 	}
 
 	<-c.done
+	c.appendError(c.config.err)
 }
 
 // Err 获取错误返回
 func (c *WorkerGroup) Err() error {
-	return c.collector.Err()
+	return c.err
 }
