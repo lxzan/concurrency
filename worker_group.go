@@ -14,7 +14,6 @@ type WorkerGroup struct {
 	taskDone       int64           // completed tasks
 	taskTotal      int64           // total tasks
 	maxConcurrency int64           // max concurrent coroutine
-	curConcurrency int64           // current concurrent coroutine
 	done           chan bool
 }
 
