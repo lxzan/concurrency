@@ -12,25 +12,59 @@ import (
 
 func TestNewTaskGroup(t *testing.T) {
 	as := assert.New(t)
-	t.Run("success", func(t *testing.T) {
-		mu := &sync.Mutex{}
-		listA := make([]uint8, 0)
-		listB := make([]uint8, 0)
-		ctl := NewWorkerGroup()
-		for i := 0; i < 100; i++ {
-			ctl.Push(Job{
-				Args: uint8(i),
+
+	t.Run("0 task", func(t *testing.T) {
+		cc := NewWorkerGroup()
+		cc.StartAndWait()
+		as.NoError(cc.Err())
+	})
+
+	t.Run("1 task", func(t *testing.T) {
+		cc := NewWorkerGroup()
+		cc.Push(Job{
+			Args: 1,
+			Do: func(args interface{}) error {
+				return nil
+			},
+		})
+		cc.StartAndWait()
+		as.NoError(cc.Err())
+	})
+
+	t.Run("100 task", func(t *testing.T) {
+		sum := int64(0)
+		w := NewWorkerGroup()
+		for i := int64(1); i <= 100; i++ {
+			w.Push(Job{
+				Args: i,
 				Do: func(args interface{}) error {
-					mu.Lock()
-					listA = append(listA, args.(uint8))
-					mu.Unlock()
+					atomic.AddInt64(&sum, args.(int64))
 					return nil
 				},
 			})
-			listB = append(listB, uint8(i))
 		}
-		ctl.StartAndWait()
-		as.ElementsMatch(listA, listB)
+		w.StartAndWait()
+		as.Equal(sum, int64(5050))
+	})
+
+	t.Run("error", func(t *testing.T) {
+		cc := NewWorkerGroup()
+		cc.Push(
+			Job{
+				Args: 1,
+				Do: func(args interface{}) error {
+					return errors.New("test1")
+				},
+			},
+			Job{
+				Args: 2,
+				Do: func(args interface{}) error {
+					return errors.New("test2")
+				},
+			},
+		)
+		cc.StartAndWait()
+		as.Error(cc.Err())
 	})
 
 	t.Run("timeout", func(t *testing.T) {
@@ -58,61 +92,7 @@ func TestNewTaskGroup(t *testing.T) {
 		as.ElementsMatch(list, []int{1, 3})
 	})
 
-	t.Run("empty", func(t *testing.T) {
-		cc := NewWorkerGroup()
-		cc.StartAndWait()
-		as.NoError(cc.Err())
-	})
-
-	t.Run("one task", func(t *testing.T) {
-		cc := NewWorkerGroup()
-		cc.Push(Job{
-			Args: 1,
-			Do: func(args interface{}) error {
-				return nil
-			},
-		})
-		cc.StartAndWait()
-		as.NoError(cc.Err())
-	})
-
-	t.Run("error", func(t *testing.T) {
-		cc := NewWorkerGroup()
-		cc.Push(
-			Job{
-				Args: 1,
-				Do: func(args interface{}) error {
-					return errors.New("test1")
-				},
-			},
-			Job{
-				Args: 2,
-				Do: func(args interface{}) error {
-					return errors.New("test2")
-				},
-			},
-		)
-		cc.StartAndWait()
-		as.Error(cc.Err())
-	})
-
-	t.Run("100 task", func(t *testing.T) {
-		sum := int64(0)
-		w := NewWorkerGroup()
-		for i := int64(1); i <= 100; i++ {
-			w.Push(Job{
-				Args: i,
-				Do: func(args interface{}) error {
-					atomic.AddInt64(&sum, args.(int64))
-					return nil
-				},
-			})
-		}
-		w.StartAndWait()
-		as.Equal(sum, int64(5050))
-	})
-
-	t.Run("", func(t *testing.T) {
+	t.Run("recovery", func(t *testing.T) {
 		ctl := NewWorkerGroup(WithRecovery())
 		ctl.Push(Job{
 			Args: nil,
@@ -121,6 +101,6 @@ func TestNewTaskGroup(t *testing.T) {
 			},
 		})
 		ctl.StartAndWait()
-		println(ctl.Err().Error())
+		as.Error(ctl.err)
 	})
 }

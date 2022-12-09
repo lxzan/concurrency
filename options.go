@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"runtime"
 )
 
 const (
@@ -82,7 +83,8 @@ func WithRecovery() Option {
 		c.Caller = func(job Job) error {
 			defer func() {
 				if err := recover(); err != nil {
-					var msg = fmt.Sprintf("fatal error: %v", err)
+					_, caller, line, _ := runtime.Caller(2)
+					var msg = fmt.Sprintf("fatal error: %v, caller: %s, line: %d", err, caller, line)
 					c.err = errors.New(msg)
 					c.Logger.Errorf(msg)
 				}

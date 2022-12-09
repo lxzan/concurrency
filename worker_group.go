@@ -17,7 +17,6 @@ type WorkerGroup struct {
 }
 
 // NewWorkerGroup 新建一个任务集
-// threads: 最大并发协程数量
 func NewWorkerGroup(options ...Option) *WorkerGroup {
 	config := new(Config).init()
 	for _, fn := range options {
@@ -64,10 +63,7 @@ func (c *WorkerGroup) do() {
 	if item := c.q.Front(); item != nil {
 		go func(job Job) {
 			if !isCanceled(c.config.Context) {
-				if err := c.config.Caller(job); err != nil {
-					c.appendError(err)
-				} else {
-				}
+				c.appendError(c.config.Caller(job))
 			}
 			atomic.AddInt64(&c.taskDone, 1)
 			c.do()
