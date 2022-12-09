@@ -1,8 +1,8 @@
 package concurrency
 
 import (
+	"errors"
 	"github.com/hashicorp/go-multierror"
-	"github.com/pkg/errors"
 	"sync"
 )
 
