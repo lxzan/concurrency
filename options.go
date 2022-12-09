@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"runtime"
 )
 
@@ -13,30 +12,16 @@ const (
 )
 
 var (
-	DefaultLogger = new(loggerWrapper)
-
 	DefaultCaller CallerFunc = func(job Job) error {
 		return job.Do(job.Args)
 	}
 )
 
-type loggerWrapper struct{}
-
-func (c *loggerWrapper) Errorf(format string, v ...interface{}) {
-	log.Default().Printf(format, v...)
-}
-
 type (
-	Logger interface {
-		Errorf(format string, v ...interface{})
-	}
-
 	Config struct {
-		err         error
 		Context     context.Context
 		Concurrency int64
 		Caller      CallerFunc
-		Logger      Logger
 	}
 
 	Option func(c *Config)
@@ -50,9 +35,6 @@ func (c *Config) init() *Config {
 	}
 	if c.Concurrency <= 0 {
 		c.Concurrency = DefaultConcurrency
-	}
-	if c.Logger == nil {
-		c.Logger = DefaultLogger
 	}
 	if c.Caller == nil {
 		c.Caller = DefaultCaller
@@ -72,21 +54,14 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-func WithLogger(logger Logger) Option {
-	return func(c *Config) {
-		c.Logger = logger
-	}
-}
-
 func WithRecovery() Option {
 	return func(c *Config) {
-		c.Caller = func(job Job) error {
+		c.Caller = func(job Job) (err error) {
 			defer func() {
-				if err := recover(); err != nil {
+				if e := recover(); e != nil {
 					_, caller, line, _ := runtime.Caller(2)
-					var msg = fmt.Sprintf("fatal error: %v, caller: %s, line: %d", err, caller, line)
-					c.err = errors.New(msg)
-					c.Logger.Errorf(msg)
+					var msg = fmt.Sprintf("fatal error: %v, caller: %s, line: %d", e, caller, line)
+					err = errors.New(msg)
 				}
 			}()
 			return job.Do(job.Args)

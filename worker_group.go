@@ -84,7 +84,6 @@ func (c *WorkerGroup) StartAndWait() {
 	}
 
 	<-c.done
-	c.appendError(c.config.err)
 }
 
 // Err 获取错误返回
