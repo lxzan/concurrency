@@ -1,4 +1,4 @@
-package optimizer
+package concurrency
 
 import (
 	"context"
@@ -25,11 +25,11 @@ type (
 
 // NewWorkerQueue 创建一个工作队列
 // concurrency 最大并发协程数量
-func NewWorkerQueue(ctx context.Context, concurrency int64) *WorkerQueue {
+func NewWorkerQueue(ctx context.Context, threads int64) *WorkerQueue {
 	return &WorkerQueue{
 		ctx:            ctx,
 		q:              NewQueue(),
-		maxConcurrency: concurrency,
+		maxConcurrency: threads,
 		curConcurrency: 0,
 	}
 }

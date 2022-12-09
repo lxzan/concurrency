@@ -1,4 +1,4 @@
-package optimizer
+package concurrency
 
 import "sync"
 
