@@ -8,13 +8,14 @@ import (
 
 type WorkerGroup struct {
 	sync.Mutex
-	ctx             context.Context // context
-	collector       *errorCollector // error collector
-	q               *Queue          // task queue
-	taskDone        int64           // completed tasks
-	taskTotal       int64           // total tasks
-	maxcConcurrency int64           // max concurrent coroutine
-	done            chan bool
+	ctx            context.Context // context
+	collector      *errorCollector // error collector
+	q              *Queue          // task queue
+	taskDone       int64           // completed tasks
+	taskTotal      int64           // total tasks
+	maxConcurrency int64           // max concurrent coroutine
+	curConcurrency int64           // current concurrent coroutine
+	done           chan bool
 }
 
 // NewWorkerGroup 新建一个任务集
@@ -24,12 +25,12 @@ func NewWorkerGroup(ctx context.Context, threads int64) *WorkerGroup {
 		threads = 8
 	}
 	o := &WorkerGroup{
-		ctx:             ctx,
-		collector:       &errorCollector{mu: &sync.RWMutex{}},
-		q:               NewQueue(),
-		maxcConcurrency: threads,
-		taskDone:        0,
-		done:            make(chan bool),
+		ctx:            ctx,
+		collector:      &errorCollector{mu: &sync.RWMutex{}},
+		q:              NewQueue(),
+		maxConcurrency: threads,
+		taskDone:       0,
+		done:           make(chan bool),
 	}
 	return o
 }
@@ -75,7 +76,7 @@ func (c *WorkerGroup) StartAndWait() {
 		return
 	}
 
-	var co = min(c.maxcConcurrency, taskTotal)
+	var co = min(c.maxConcurrency, taskTotal)
 	for i := int64(0); i < co; i++ {
 		c.do()
 	}
