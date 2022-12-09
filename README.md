@@ -4,7 +4,7 @@
 
 [![Build Status](https://github.com/lxzan/concurrency/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/concurrency/actions?query=branch%3Amaster)
 
-> 工作队列, 可以不断往里面添加不同种类的任务, 一旦有资源空闲就去执行
+> 工作队列, 可以不断往里面添加任务, 一旦有CPU资源空闲就去执行
 
 ```go
 package main
@@ -60,7 +60,7 @@ args=[1 3 5], ans=9
 
 #### WorkerGroup 
 
-> 工作组, 添加一组任务, 等待任务完全被执行
+> 工作组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
 
 ```go
 package main
