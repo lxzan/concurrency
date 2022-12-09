@@ -2,6 +2,8 @@
 
 #### WorkerQueue 
 
+[![Build Status](https://github.com/lxzan/concurrency/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/concurrency/actions?query=branch%3Amaster)
+
 > 工作队列, 可以不断往里面添加不同种类的任务, 一旦有资源空闲就去执行
 
 ```go
