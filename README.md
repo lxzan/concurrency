@@ -11,7 +11,7 @@ GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
 - 最大并发协程数量限制
 - 支持 `contex.Contex`
 - 支持 `panic recover`, 返回包含错误堆栈的 `error`
-- 任务调度不依赖 `time.Ticker`
+- 任务调度不依赖 `time.Ticker` 和 `channel`
 
 
 #### Usage
