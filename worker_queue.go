@@ -55,6 +55,7 @@ func (c *WorkerQueue) getJob() interface{} {
 
 	var result = c.q[0]
 	c.q = c.q[1:]
+	c.curConcurrency++
 	return result
 }
 
@@ -66,7 +67,6 @@ func (c *WorkerQueue) incr(d int64) {
 
 func (c *WorkerQueue) do() {
 	if item := c.getJob(); item != nil {
-		c.incr(1)
 		go func(job Job) {
 			if !isCanceled(c.config.Context) {
 				c.callOnError(c.config.Caller(job))
@@ -84,6 +84,13 @@ func (c *WorkerQueue) callOnError(err error) {
 	if c.OnError != nil {
 		c.OnError(err)
 	}
+}
+
+func (c *WorkerQueue) getCurConcurrency() int64 {
+	c.mu.Lock()
+	x := c.curConcurrency
+	c.mu.Unlock()
+	return x
 }
 
 // Stop 优雅退出

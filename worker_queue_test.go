@@ -9,40 +9,44 @@ import (
 
 func TestNewWorkerQueue(t *testing.T) {
 	as := assert.New(t)
+
 	t.Run("sum", func(t *testing.T) {
+		var threads = int64(8)
 		var val = int64(0)
 		var wg = sync.WaitGroup{}
-		wg.Add(100)
-		w := NewWorkerQueue(WithConcurrency(8))
-		for i := 1; i <= 100; i++ {
+		wg.Add(1000)
+		w := NewWorkerQueue(WithConcurrency(threads))
+		for i := 1; i <= 1000; i++ {
 			w.Push(Job{
 				Args: int64(i),
 				Do: func(args interface{}) error {
-					println(atomic.LoadInt64(&w.curConcurrency))
 					atomic.AddInt64(&val, args.(int64))
 					wg.Done()
+					as.LessOrEqual(w.getCurConcurrency(), threads)
 					return nil
 				},
 			})
 		}
 		wg.Wait()
-		as.Equal(int64(5050), val)
+		as.Equal(int64(500500), val)
 	})
 
 	t.Run("recover", func(t *testing.T) {
+		var err error
 		var wg = sync.WaitGroup{}
 		wg.Add(1)
 		w := NewWorkerQueue(WithRecovery())
 		w.Push(Job{
 			Args: nil,
 			Do: func(args interface{}) error {
-				wg.Done()
 				panic("test")
 			},
 		})
-		w.OnError = func(err error) {
-			as.Error(err)
+		w.OnError = func(e error) {
+			err = e
+			wg.Done()
 		}
 		wg.Wait()
+		as.Error(err)
 	})
 }
