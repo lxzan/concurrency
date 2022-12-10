@@ -37,8 +37,8 @@ func (c *WorkerGroup) Len() int {
 	return c.q.Len()
 }
 
-// Push 往任务队列中追加任务
-func (c *WorkerGroup) Push(jobs ...Job) {
+// AddJob 往任务队列中追加任务
+func (c *WorkerGroup) AddJob(jobs ...Job) {
 	atomic.AddInt64(&c.taskTotal, int64(len(jobs)))
 	for i, _ := range jobs {
 		c.q.Push(jobs[i])

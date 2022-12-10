@@ -17,7 +17,7 @@ func TestNewWorkerQueue(t *testing.T) {
 		wg.Add(1000)
 		w := NewWorkerQueue(WithConcurrency(threads))
 		for i := 1; i <= 1000; i++ {
-			w.Push(Job{
+			w.AddJob(Job{
 				Args: int64(i),
 				Do: func(args interface{}) error {
 					atomic.AddInt64(&val, args.(int64))
@@ -36,7 +36,7 @@ func TestNewWorkerQueue(t *testing.T) {
 		var wg = sync.WaitGroup{}
 		wg.Add(1)
 		w := NewWorkerQueue(WithRecovery())
-		w.Push(Job{
+		w.AddJob(Job{
 			Args: nil,
 			Do: func(args interface{}) error {
 				panic("test")

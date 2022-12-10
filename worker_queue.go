@@ -30,8 +30,8 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 	}
 }
 
-// Push 追加任务, 有资源空闲的话会立即执行
-func (c *WorkerQueue) Push(jobs ...Job) {
+// AddJob 追加任务, 有资源空闲的话会立即执行
+func (c *WorkerQueue) AddJob(jobs ...Job) {
 	c.mu.Lock()
 	c.q = append(c.q, jobs...)
 	c.mu.Unlock()

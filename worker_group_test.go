@@ -21,7 +21,7 @@ func TestNewTaskGroup(t *testing.T) {
 
 	t.Run("1 task", func(t *testing.T) {
 		cc := NewWorkerGroup()
-		cc.Push(Job{
+		cc.AddJob(Job{
 			Args: 1,
 			Do: func(args interface{}) error {
 				return nil
@@ -35,7 +35,7 @@ func TestNewTaskGroup(t *testing.T) {
 		sum := int64(0)
 		w := NewWorkerGroup()
 		for i := int64(1); i <= 100; i++ {
-			w.Push(Job{
+			w.AddJob(Job{
 				Args: i,
 				Do: func(args interface{}) error {
 					atomic.AddInt64(&sum, args.(int64))
@@ -49,7 +49,7 @@ func TestNewTaskGroup(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		cc := NewWorkerGroup()
-		cc.Push(
+		cc.AddJob(
 			Job{
 				Args: 1,
 				Do: func(args interface{}) error {
@@ -80,7 +80,7 @@ func TestNewTaskGroup(t *testing.T) {
 			time.Sleep(2 * time.Second)
 			return nil
 		}
-		ctl.Push(
+		ctl.AddJob(
 			Job{1, do},
 			Job{3, do},
 			Job{5, do},
@@ -94,7 +94,7 @@ func TestNewTaskGroup(t *testing.T) {
 
 	t.Run("recovery", func(t *testing.T) {
 		ctl := NewWorkerGroup(WithRecovery())
-		ctl.Push(Job{
+		ctl.AddJob(Job{
 			Args: nil,
 			Do: func(args interface{}) error {
 				return args.(error)
