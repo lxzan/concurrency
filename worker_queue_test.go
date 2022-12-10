@@ -1,7 +1,6 @@
 package concurrency
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
@@ -15,7 +14,7 @@ func TestNewWorkerQueue(t *testing.T) {
 		var val = int64(0)
 		var wg = sync.WaitGroup{}
 		wg.Add(4)
-		w := NewWorkerQueue(context.Background(), 8)
+		w := NewWorkerQueue()
 		job1 := Job{
 			Args: 1,
 			Do: func(args interface{}) error {
@@ -49,7 +48,7 @@ func TestNewWorkerQueue(t *testing.T) {
 		val := int64(0)
 		var wg = sync.WaitGroup{}
 		wg.Add(4)
-		w := NewWorkerQueue(context.Background(), 8)
+		w := NewWorkerQueue()
 		job1 := Job{
 			Args: 1,
 			Do: func(args interface{}) error {

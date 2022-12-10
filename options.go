@@ -8,17 +8,27 @@ import (
 	"strings"
 )
 
-const (
-	DefaultConcurrency = 8
-)
+const DefaultConcurrency = 8
 
 var (
+	// 默认任务调用器
 	DefaultCaller CallerFunc = func(job Job) error {
 		return job.Do(job.Args)
 	}
+
+	// 默认工作队列, 64协程, 开启恢复模式
+	DefaultWorker = NewWorkerQueue(
+		WithConcurrency(64),
+		WithRecovery(),
+	)
 )
 
 type (
+	Job struct {
+		Args interface{}
+		Do   func(args interface{}) error
+	}
+
 	Config struct {
 		Context     context.Context
 		Concurrency int64

@@ -6,30 +6,24 @@ import (
 	"time"
 )
 
-var DefaultWorker = NewWorkerQueue(context.Background(), 16)
-
-type (
-	WorkerQueue struct {
-		ctx            context.Context
-		q              *Queue
-		maxConcurrency int64
-		curConcurrency int64
-		OnError        func(err error)
-	}
-
-	Job struct {
-		Args interface{}
-		Do   func(args interface{}) error
-	}
-)
+type WorkerQueue struct {
+	config         *Config
+	q              *Queue
+	maxConcurrency int64
+	curConcurrency int64
+	OnError        func(err error)
+}
 
 // NewWorkerQueue 创建一个工作队列
-// concurrency 最大并发协程数量
-func NewWorkerQueue(ctx context.Context, threads int64) *WorkerQueue {
+func NewWorkerQueue(options ...Option) *WorkerQueue {
+	config := &Config{}
+	for _, fn := range options {
+		fn(config)
+	}
 	return &WorkerQueue{
-		ctx:            ctx,
+		config:         config.init(),
 		q:              NewQueue(),
-		maxConcurrency: threads,
+		maxConcurrency: config.Concurrency,
 		curConcurrency: 0,
 	}
 }
@@ -54,8 +48,8 @@ func (c *WorkerQueue) do() {
 
 	atomic.AddInt64(&c.curConcurrency, 1)
 	go func(job Job) {
-		if !isCanceled(c.ctx) {
-			c.callOnError(job.Do(job.Args))
+		if !isCanceled(c.config.Context) {
+			c.callOnError(c.config.Caller(job))
 		}
 		atomic.AddInt64(&c.curConcurrency, -1)
 		c.do()
