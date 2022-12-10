@@ -2,6 +2,11 @@
 
 [![Build Status](https://github.com/lxzan/concurrency/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/concurrency/actions?query=branch%3Amaster)
 
+### install
+```bash
+GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
+```
+
 #### Feature
 - 最大并发协程数量限制
 - 支持 `contex.Contex`
