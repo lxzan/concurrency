@@ -18,13 +18,13 @@ type WorkerGroup struct {
 
 // NewWorkerGroup 新建一个任务集
 func NewWorkerGroup(options ...Option) *WorkerGroup {
-	config := new(Config).init()
+	config := &Config{}
 	for _, fn := range options {
 		fn(config)
 	}
 	o := &WorkerGroup{
 		mu:       &sync.Mutex{},
-		config:   config,
+		config:   config.init(),
 		q:        NewQueue(),
 		taskDone: 0,
 		done:     make(chan bool),

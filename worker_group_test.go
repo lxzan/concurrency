@@ -97,10 +97,11 @@ func TestNewTaskGroup(t *testing.T) {
 		ctl.Push(Job{
 			Args: nil,
 			Do: func(args interface{}) error {
-				panic("aha")
+				return args.(error)
 			},
 		})
 		ctl.StartAndWait()
 		as.Error(ctl.Err())
+		t.Logf(ctl.Err().Error())
 	})
 }
