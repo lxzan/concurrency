@@ -2,13 +2,14 @@ package concurrency
 
 import (
 	"context"
-	"sync/atomic"
+	"sync"
 	"time"
 )
 
 type WorkerQueue struct {
+	mu             *sync.Mutex
 	config         *Config
-	q              *Queue
+	q              []Job
 	maxConcurrency int64
 	curConcurrency int64
 	OnError        func(err error)
@@ -21,8 +22,9 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 		fn(config)
 	}
 	return &WorkerQueue{
+		mu:             &sync.Mutex{},
 		config:         config.init(),
-		q:              NewQueue(),
+		q:              make([]Job, 0),
 		maxConcurrency: config.Concurrency,
 		curConcurrency: 0,
 	}
@@ -30,30 +32,49 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 
 // Push 追加任务, 有资源空闲的话会立即执行
 func (c *WorkerQueue) Push(jobs ...Job) {
-	for i, _ := range jobs {
-		c.q.Push(jobs[i])
+	c.mu.Lock()
+	c.q = append(c.q, jobs...)
+	c.mu.Unlock()
+
+	var n = len(jobs)
+	for i := 0; i < n; i++ {
 		c.do()
 	}
 }
 
+func (c *WorkerQueue) getJob() interface{} {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.curConcurrency >= c.maxConcurrency {
+		return nil
+	}
+	if n := len(c.q); n == 0 {
+		return nil
+	}
+
+	var result = c.q[0]
+	c.q = c.q[1:]
+	return result
+}
+
+func (c *WorkerQueue) incr(d int64) {
+	c.mu.Lock()
+	c.curConcurrency += d
+	c.mu.Unlock()
+}
+
 func (c *WorkerQueue) do() {
-	if atomic.LoadInt64(&c.curConcurrency) >= c.maxConcurrency {
-		return
+	if item := c.getJob(); item != nil {
+		c.incr(1)
+		go func(job Job) {
+			if !isCanceled(c.config.Context) {
+				c.callOnError(c.config.Caller(job))
+			}
+			c.incr(-1)
+			c.do()
+		}(item.(Job))
 	}
-
-	item := c.q.Front()
-	if item == nil {
-		return
-	}
-
-	atomic.AddInt64(&c.curConcurrency, 1)
-	go func(job Job) {
-		if !isCanceled(c.config.Context) {
-			c.callOnError(c.config.Caller(job))
-		}
-		atomic.AddInt64(&c.curConcurrency, -1)
-		c.do()
-	}(item.(Job))
 }
 
 func (c *WorkerQueue) callOnError(err error) {
@@ -75,7 +96,10 @@ func (c *WorkerQueue) StopAndWait(timeout time.Duration) {
 	for {
 		select {
 		case <-ticker.C:
-			if c.q.Len() == 0 && atomic.LoadInt64(&c.curConcurrency) == 0 {
+			c.mu.Lock()
+			x := int64(len(c.q)) + c.curConcurrency
+			c.mu.Unlock()
+			if x == 0 {
 				return
 			}
 		case <-ctx.Done():
