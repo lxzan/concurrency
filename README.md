@@ -15,6 +15,40 @@ GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
 
 
 #### Usage
+
+- WorkerGroup 工作组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/lxzan/concurrency"
+	"sync/atomic"
+)
+
+func main() {
+	sum := int64(0)
+	w := concurrency.NewWorkerGroup()
+	for i := int64(1); i <= 10; i++ {
+		w.AddJob(concurrency.Job{
+			Args: i,
+			Do: func(args interface{}) error {
+				fmt.Printf("%v ", args)
+				atomic.AddInt64(&sum, args.(int64))
+				return nil
+			},
+		})
+	}
+	w.StartAndWait()
+	fmt.Printf("sum=%d\n", sum)
+}
+```
+
+```
+4 5 6 7 8 9 10 1 3 2 sum=55
+```
+
 - WorkerQueue  工作队列, 可以不断往里面添加任务, 一旦有CPU资源空闲就去执行
 
 ```go
@@ -65,38 +99,4 @@ args=[1 3], ans=4
 args=[1 3 5], ans=15
 args=[1 3], ans=3
 args=[1 3 5], ans=9
-```
-
-
-- WorkerGroup 工作组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
-
-```go
-package main
-
-import (
-	"fmt"
-	"github.com/lxzan/concurrency"
-	"sync/atomic"
-)
-
-func main() {
-	sum := int64(0)
-	w := concurrency.NewWorkerGroup()
-	for i := int64(1); i <= 10; i++ {
-		w.AddJob(concurrency.Job{
-			Args: i,
-			Do: func(args interface{}) error {
-				fmt.Printf("%v ", args)
-				atomic.AddInt64(&sum, args.(int64))
-				return nil
-			},
-		})
-	}
-	w.StartAndWait()
-	fmt.Printf("sum=%d\n", sum)
-}
-```
-
-```
-4 5 6 7 8 9 10 1 3 2 sum=55
 ```
