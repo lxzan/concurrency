@@ -30,18 +30,6 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 	}
 }
 
-// AddJob 追加任务, 有资源空闲的话会立即执行
-func (c *WorkerQueue) AddJob(jobs ...Job) {
-	c.mu.Lock()
-	c.q = append(c.q, jobs...)
-	c.mu.Unlock()
-
-	var n = len(jobs)
-	for i := 0; i < n; i++ {
-		c.do()
-	}
-}
-
 func (c *WorkerQueue) getJob() interface{} {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -65,15 +53,13 @@ func (c *WorkerQueue) incr(d int64) {
 	c.mu.Unlock()
 }
 
-func (c *WorkerQueue) do() {
-	if item := c.getJob(); item != nil {
-		go func(job Job) {
-			if !isCanceled(c.config.Context) {
-				c.callOnError(c.config.Caller(job))
-			}
-			c.incr(-1)
-			c.do()
-		}(item.(Job))
+func (c *WorkerQueue) do(job Job) {
+	if !isCanceled(c.config.Context) {
+		c.callOnError(c.config.Caller(job))
+	}
+	c.incr(-1)
+	if nextJob := c.getJob(); nextJob != nil {
+		c.do(nextJob.(Job))
 	}
 }
 
@@ -91,6 +77,28 @@ func (c *WorkerQueue) getCurConcurrency() int64 {
 	x := c.curConcurrency
 	c.mu.Unlock()
 	return x
+}
+
+// Len 获取队列中剩余任务数量
+func (c *WorkerQueue) Len() int {
+	c.mu.Lock()
+	x := len(c.q)
+	c.mu.Unlock()
+	return x
+}
+
+// AddJob 追加任务, 有资源空闲的话会立即执行
+func (c *WorkerQueue) AddJob(jobs ...Job) {
+	c.mu.Lock()
+	c.q = append(c.q, jobs...)
+	c.mu.Unlock()
+
+	var n = len(jobs)
+	for i := 0; i < n; i++ {
+		if item := c.getJob(); item != nil {
+			go c.do(item.(Job))
+		}
+	}
 }
 
 // Stop 优雅退出
