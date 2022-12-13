@@ -12,9 +12,6 @@ import (
 const DefaultConcurrency = 8
 
 var (
-	// 默认日志组件
-	DefaultLogger = new(loggerWrapper)
-
 	// 默认任务调用器
 	DefaultCaller CallerFunc = func(job Job) error {
 		return job.Do(job.Args)
@@ -29,7 +26,7 @@ var (
 
 func init() {
 	DefaultWorkerQueue.OnError = func(err error) {
-		log.Printf(err.Error())
+		log.Printf("%+v", err)
 	}
 }
 
@@ -43,8 +40,6 @@ type (
 		Context     context.Context // 上下文
 		Concurrency int64           // 并发协程数量
 		Caller      CallerFunc      // 任务调用器
-		LogEnabled  bool            // 是否开启日志, 默认开启
-		Logger      Logger          // 日志组件
 	}
 
 	Option func(c *Config)
@@ -62,9 +57,6 @@ func (c *Config) init() *Config {
 	if c.Caller == nil {
 		c.Caller = DefaultCaller
 	}
-	if c.Logger == nil {
-		c.Logger = DefaultLogger
-	}
 	return c
 }
 
@@ -79,20 +71,6 @@ func WithConcurrency(x int64) Option {
 func WithContext(ctx context.Context) Option {
 	return func(c *Config) {
 		c.Context = ctx
-	}
-}
-
-// 设置是否开启日志
-func WithLogEnabled(enabled bool) Option {
-	return func(c *Config) {
-		c.LogEnabled = enabled
-	}
-}
-
-// 设置日志组件
-func WithLogger(logger Logger) Option {
-	return func(c *Config) {
-		c.Logger = logger
 	}
 }
 

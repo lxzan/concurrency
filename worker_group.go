@@ -13,11 +13,12 @@ type WorkerGroup struct {
 	q         []Job
 	taskDone  int64
 	taskTotal int64
+	OnError   func(err error)
 }
 
 // NewWorkerGroup 新建一个任务集
 func NewWorkerGroup(options ...Option) *WorkerGroup {
-	config := &Config{LogEnabled: true}
+	config := &Config{}
 	for _, fn := range options {
 		fn(config)
 	}
@@ -43,12 +44,12 @@ func (c *WorkerGroup) getJob() interface{} {
 	return result
 }
 
-func (c *WorkerGroup) appendError(err error) {
+func (c *WorkerGroup) callOnError(err error) {
 	if err == nil {
 		return
 	}
-	if c.config.LogEnabled {
-		c.config.Logger.Errorf("%+v", err)
+	if c.OnError != nil {
+		c.OnError(err)
 	}
 	c.mu.Lock()
 	c.err = multierror.Append(err)
@@ -67,7 +68,7 @@ func (c *WorkerGroup) incrAndIsDone() bool {
 
 func (c *WorkerGroup) do(job Job) {
 	if !isCanceled(c.config.Context) {
-		c.appendError(c.config.Caller(job))
+		c.callOnError(c.config.Caller(job))
 	}
 	if c.incrAndIsDone() {
 		c.done <- true
