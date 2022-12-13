@@ -40,10 +40,11 @@ type (
 	}
 
 	Config struct {
-		Context     context.Context
-		Concurrency int64
-		Caller      CallerFunc
-		Logger      Logger
+		Context     context.Context // 上下文
+		Concurrency int64           // 并发协程数量
+		Caller      CallerFunc      // 任务调用器
+		LogEnabled  bool            // 是否开启日志, 默认开启
+		Logger      Logger          // 日志组件
 	}
 
 	Option func(c *Config)
@@ -81,7 +82,14 @@ func WithContext(ctx context.Context) Option {
 	}
 }
 
-// 设置日志组件, 仅用于WorkQueue
+// 设置是否开启日志
+func WithLogEnabled(enabled bool) Option {
+	return func(c *Config) {
+		c.LogEnabled = enabled
+	}
+}
+
+// 设置日志组件
 func WithLogger(logger Logger) Option {
 	return func(c *Config) {
 		c.Logger = logger

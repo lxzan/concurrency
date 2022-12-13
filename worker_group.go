@@ -17,7 +17,7 @@ type WorkerGroup struct {
 
 // NewWorkerGroup 新建一个任务集
 func NewWorkerGroup(options ...Option) *WorkerGroup {
-	config := &Config{}
+	config := &Config{LogEnabled: true}
 	for _, fn := range options {
 		fn(config)
 	}
@@ -46,6 +46,9 @@ func (c *WorkerGroup) getJob() interface{} {
 func (c *WorkerGroup) appendError(err error) {
 	if err == nil {
 		return
+	}
+	if c.config.LogEnabled {
+		c.config.Logger.Errorf("%+v", err)
 	}
 	c.mu.Lock()
 	c.err = multierror.Append(err)

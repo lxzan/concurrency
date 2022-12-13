@@ -102,6 +102,5 @@ func TestNewTaskGroup(t *testing.T) {
 		})
 		ctl.StartAndWait()
 		as.Error(ctl.Err())
-		t.Logf(ctl.Err().Error())
 	})
 }

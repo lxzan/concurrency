@@ -17,7 +17,7 @@ type WorkerQueue struct {
 
 // NewWorkerQueue 创建一个工作队列
 func NewWorkerQueue(options ...Option) *WorkerQueue {
-	config := &Config{}
+	config := &Config{LogEnabled: true}
 	for _, fn := range options {
 		fn(config)
 	}
@@ -29,7 +29,9 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 		curConcurrency: 0,
 	}
 	c.OnError = func(err error) {
-		c.config.Logger.Errorf("%+v", err)
+		if c.config.LogEnabled {
+			c.config.Logger.Errorf("%+v", err)
+		}
 	}
 	return c
 }
