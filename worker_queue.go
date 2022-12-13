@@ -7,12 +7,12 @@ import (
 )
 
 type WorkerQueue struct {
-	mu             *sync.Mutex
-	config         *Config
-	q              []Job
-	maxConcurrency int64
-	curConcurrency int64
-	OnError        func(err error)
+	mu             *sync.Mutex     // 锁
+	config         *Config         // 配置
+	q              []Job           // 任务队列
+	maxConcurrency int64           // 最大并发
+	curConcurrency int64           // 当前并发
+	OnError        func(err error) // 错误处理函数. 一般用来打印错误;
 }
 
 // NewWorkerQueue 创建一个工作队列

@@ -6,14 +6,14 @@ import (
 )
 
 type WorkerGroup struct {
-	mu        *sync.Mutex
-	err       error
-	config    *Config
-	done      chan bool
-	q         []Job
-	taskDone  int64
-	taskTotal int64
-	OnError   func(err error)
+	mu        *sync.Mutex     // 锁
+	err       error           // 错误
+	config    *Config         // 配置
+	done      chan bool       // 信号
+	q         []Job           // 任务队列
+	taskDone  int64           // 已完成任务数量
+	taskTotal int64           // 总任务数量
+	OnError   func(err error) // 错误处理函数. 一般用来打印错误; 放弃剩余任务
 }
 
 // NewWorkerGroup 新建一个任务集
