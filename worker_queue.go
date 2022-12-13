@@ -21,13 +21,17 @@ func NewWorkerQueue(options ...Option) *WorkerQueue {
 	for _, fn := range options {
 		fn(config)
 	}
-	return &WorkerQueue{
+	c := &WorkerQueue{
 		mu:             &sync.Mutex{},
 		config:         config.init(),
 		q:              make([]Job, 0),
 		maxConcurrency: config.Concurrency,
 		curConcurrency: 0,
 	}
+	c.OnError = func(err error) {
+		c.config.Logger.Errorf("%+v", err)
+	}
+	return c
 }
 
 func (c *WorkerQueue) getJob() interface{} {

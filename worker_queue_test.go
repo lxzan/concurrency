@@ -1,6 +1,7 @@
 package concurrency
 
 import (
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
@@ -48,5 +49,19 @@ func TestNewWorkerQueue(t *testing.T) {
 		}
 		wg.Wait()
 		as.Error(err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		var wg = sync.WaitGroup{}
+		wg.Add(1)
+		w := NewWorkerQueue()
+		w.AddJob(Job{
+			Args: nil,
+			Do: func(args interface{}) error {
+				defer wg.Done()
+				return errors.New("internal error")
+			},
+		})
+		wg.Wait()
 	})
 }

@@ -52,9 +52,11 @@ func (c *WorkerGroup) appendError(err error) {
 	c.mu.Unlock()
 }
 
-func (c *WorkerGroup) incr(d int64) bool {
+// incrAndIsDone
+// 已完成任务+1, 并检查任务是否全部完成
+func (c *WorkerGroup) incrAndIsDone() bool {
 	c.mu.Lock()
-	c.taskDone += d
+	c.taskDone++
 	ok := c.taskDone == c.taskTotal
 	c.mu.Unlock()
 	return ok
@@ -64,7 +66,7 @@ func (c *WorkerGroup) do(job Job) {
 	if !isCanceled(c.config.Context) {
 		c.appendError(c.config.Caller(job))
 	}
-	if c.incr(1) {
+	if c.incrAndIsDone() {
 		c.done <- true
 		return
 	}
