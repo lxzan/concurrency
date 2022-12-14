@@ -26,7 +26,7 @@ var (
 
 func init() {
 	DefaultWorkerQueue.OnError = func(err error) {
-		log.Printf(err.Error())
+		log.Printf("%+v", err)
 	}
 }
 
@@ -37,9 +37,9 @@ type (
 	}
 
 	Config struct {
-		Context     context.Context
-		Concurrency int64
-		Caller      CallerFunc
+		Context     context.Context // 上下文
+		Concurrency int64           // 并发协程数量
+		Caller      CallerFunc      // 任务调用器
 	}
 
 	Option func(c *Config)

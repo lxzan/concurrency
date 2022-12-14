@@ -1,10 +1,12 @@
 package concurrency
 
 import (
+	"errors"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestNewWorkerQueue(t *testing.T) {
@@ -33,8 +35,6 @@ func TestNewWorkerQueue(t *testing.T) {
 
 	t.Run("recover", func(t *testing.T) {
 		var err error
-		var wg = sync.WaitGroup{}
-		wg.Add(1)
 		w := NewWorkerQueue(WithRecovery())
 		w.AddJob(Job{
 			Args: nil,
@@ -44,9 +44,19 @@ func TestNewWorkerQueue(t *testing.T) {
 		})
 		w.OnError = func(e error) {
 			err = e
-			wg.Done()
 		}
-		wg.Wait()
+		w.StopAndWait(time.Second)
 		as.Error(err)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		w := NewWorkerQueue()
+		w.AddJob(Job{
+			Args: nil,
+			Do: func(args interface{}) error {
+				return errors.New("internal error")
+			},
+		})
+		w.StopAndWait(time.Second)
 	})
 }

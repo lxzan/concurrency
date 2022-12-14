@@ -6,13 +6,14 @@ import (
 )
 
 type WorkerGroup struct {
-	mu        *sync.Mutex
-	err       error
-	config    *Config
-	done      chan bool
-	q         []Job
-	taskDone  int64
-	taskTotal int64
+	mu        *sync.Mutex     // 锁
+	err       error           // 错误
+	config    *Config         // 配置
+	done      chan bool       // 信号
+	q         []Job           // 任务队列
+	taskDone  int64           // 已完成任务数量
+	taskTotal int64           // 总任务数量
+	OnError   func(err error) // 错误处理函数. 一般用来打印错误; 放弃剩余任务
 }
 
 // NewWorkerGroup 新建一个任务集
@@ -43,18 +44,23 @@ func (c *WorkerGroup) getJob() interface{} {
 	return result
 }
 
-func (c *WorkerGroup) appendError(err error) {
+func (c *WorkerGroup) callOnError(err error) {
 	if err == nil {
 		return
+	}
+	if c.OnError != nil {
+		c.OnError(err)
 	}
 	c.mu.Lock()
 	c.err = multierror.Append(err)
 	c.mu.Unlock()
 }
 
-func (c *WorkerGroup) incr(d int64) bool {
+// incrAndIsDone
+// 已完成任务+1, 并检查任务是否全部完成
+func (c *WorkerGroup) incrAndIsDone() bool {
 	c.mu.Lock()
-	c.taskDone += d
+	c.taskDone++
 	ok := c.taskDone == c.taskTotal
 	c.mu.Unlock()
 	return ok
@@ -62,9 +68,9 @@ func (c *WorkerGroup) incr(d int64) bool {
 
 func (c *WorkerGroup) do(job Job) {
 	if !isCanceled(c.config.Context) {
-		c.appendError(c.config.Caller(job))
+		c.callOnError(c.config.Caller(job))
 	}
-	if c.incr(1) {
+	if c.incrAndIsDone() {
 		c.done <- true
 		return
 	}
