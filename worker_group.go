@@ -96,10 +96,10 @@ func (c *WorkerGroup) AddJob(jobs ...Job) {
 }
 
 // StartAndWait 启动并等待所有任务执行完成
-func (c *WorkerGroup) StartAndWait() {
+func (c *WorkerGroup) StartAndWait() error {
 	var taskTotal = int64(c.Len())
 	if taskTotal == 0 {
-		return
+		return nil
 	}
 
 	var co = min(c.config.Concurrency, taskTotal)
@@ -110,9 +110,5 @@ func (c *WorkerGroup) StartAndWait() {
 	}
 
 	<-c.done
-}
-
-// Err 获取错误返回
-func (c *WorkerGroup) Err() error {
 	return c.err
 }

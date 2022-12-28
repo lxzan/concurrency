@@ -15,8 +15,8 @@ func TestNewTaskGroup(t *testing.T) {
 
 	t.Run("0 task", func(t *testing.T) {
 		cc := NewWorkerGroup()
-		cc.StartAndWait()
-		as.NoError(cc.Err())
+		err := cc.StartAndWait()
+		as.NoError(err)
 	})
 
 	t.Run("1 task", func(t *testing.T) {
@@ -27,8 +27,8 @@ func TestNewTaskGroup(t *testing.T) {
 				return nil
 			},
 		})
-		cc.StartAndWait()
-		as.NoError(cc.Err())
+		err := cc.StartAndWait()
+		as.NoError(err)
 	})
 
 	t.Run("100 task", func(t *testing.T) {
@@ -43,7 +43,7 @@ func TestNewTaskGroup(t *testing.T) {
 				},
 			})
 		}
-		w.StartAndWait()
+		_ = w.StartAndWait()
 		as.Equal(sum, int64(5050))
 	})
 
@@ -63,8 +63,8 @@ func TestNewTaskGroup(t *testing.T) {
 				},
 			},
 		)
-		cc.StartAndWait()
-		as.Error(cc.Err())
+		err := cc.StartAndWait()
+		as.Error(err)
 	})
 
 	t.Run("timeout", func(t *testing.T) {
@@ -87,8 +87,8 @@ func TestNewTaskGroup(t *testing.T) {
 			Job{7, do},
 			Job{9, do},
 		)
-		ctl.StartAndWait()
-		as.NoError(ctl.Err())
+		err := ctl.StartAndWait()
+		as.NoError(err)
 		as.ElementsMatch(list, []int{1, 3})
 	})
 
@@ -100,7 +100,7 @@ func TestNewTaskGroup(t *testing.T) {
 				return args.(error)
 			},
 		})
-		ctl.StartAndWait()
-		as.Error(ctl.Err())
+		err := ctl.StartAndWait()
+		as.Error(err)
 	})
 }
