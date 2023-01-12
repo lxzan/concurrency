@@ -105,7 +105,7 @@ func (c *WorkerGroup) StartAndWait() error {
 	var co = min(c.config.Concurrency, taskTotal)
 	for i := int64(0); i < co; i++ {
 		if item := c.getJob(); item != nil {
-			c.callOnError(gpool.Submit(func() { c.do(item.(Job)) }))
+			go c.do(item.(Job))
 		}
 	}
 
