@@ -97,7 +97,7 @@ func (c *WorkerQueue) AddJob(jobs ...Job) {
 	var n = len(jobs)
 	for i := 0; i < n; i++ {
 		if item := c.getJob(); item != nil {
-			go c.do(item.(Job))
+			c.callOnError(gpool.Submit(func() { c.do(item.(Job)) }))
 		}
 	}
 }

@@ -1,4 +1,6 @@
-## Concurrency
+## Concurrency Controller
+
+#### powered by [ants](https://github.com/panjf2000/ants)
 
 [![Build Status](https://github.com/lxzan/concurrency/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/concurrency/actions?query=branch%3Amaster) [![Coverage Statusd][1]][2]
 
