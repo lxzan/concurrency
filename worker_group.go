@@ -1,64 +1,84 @@
 package concurrency
 
 import (
+	"context"
+	"errors"
 	"github.com/hashicorp/go-multierror"
 	"sync"
+	"time"
 )
 
-type WorkerGroup struct {
-	mu        *sync.Mutex     // 锁
-	err       error           // 错误
-	config    *Config         // 配置
-	done      chan bool       // 信号
-	q         []Job           // 任务队列
-	taskDone  int64           // 已完成任务数量
-	taskTotal int64           // 总任务数量
-	OnError   func(err error) // 错误处理函数. 一般用来打印错误; 放弃剩余任务
+const (
+	defaultConcurrency = 8                // 默认并发度
+	defaultWaitTimeout = 60 * time.Second // 线程同步等待超时
+)
+
+var ErrWaitTimeout = errors.New("wait timeout")
+
+type WorkerGroup[T any] struct {
+	mu          *sync.Mutex        // 锁
+	concurrency int64              // 并发
+	timeout     time.Duration      // 超时
+	err         *multierror.Error  // 错误
+	done        chan bool          // 信号
+	q           []T                // 任务队列
+	taskDone    int64              // 已完成任务数量
+	taskTotal   int64              // 总任务数量
+	OnMessage   func(args T) error // 任务处理
 }
 
 // NewWorkerGroup 新建一个任务集
-func NewWorkerGroup(options ...Option) *WorkerGroup {
-	config := &Config{}
-	for _, fn := range options {
-		fn(config)
+func NewWorkerGroup[T any]() *WorkerGroup[T] {
+	c := &WorkerGroup[T]{
+		err:         &multierror.Error{},
+		concurrency: defaultConcurrency,
+		timeout:     defaultWaitTimeout,
+		mu:          &sync.Mutex{},
+		q:           make([]T, 0),
+		taskDone:    0,
+		done:        make(chan bool),
 	}
-	o := &WorkerGroup{
-		mu:       &sync.Mutex{},
-		config:   config.init(),
-		q:        make([]Job, 0),
-		taskDone: 0,
-		done:     make(chan bool),
+	c.OnMessage = func(args T) error {
+		return nil
 	}
-	return o
+	return c
 }
 
-func (c *WorkerGroup) getJob() interface{} {
+func (c *WorkerGroup[T]) SetConcurrency(num int64) *WorkerGroup[T] {
+	if num >= 0 {
+		c.concurrency = num
+	}
+	return c
+}
+
+func (c *WorkerGroup[T]) SetTimeout(d time.Duration) *WorkerGroup[T] {
+	if d >= 0 {
+		c.timeout = d
+	}
+	return c
+}
+
+func (c *WorkerGroup[T]) getJob() (v T, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if n := len(c.q); n == 0 {
-		return nil
+		return
 	}
 	var result = c.q[0]
 	c.q = c.q[1:]
-	return result
+	return result, true
 }
 
-func (c *WorkerGroup) callOnError(err error) {
-	if err == nil {
-		return
-	}
-	if c.OnError != nil {
-		c.OnError(err)
-	}
+func (c *WorkerGroup[T]) appendError(err error) {
 	c.mu.Lock()
-	c.err = multierror.Append(err)
+	c.err = multierror.Append(c.err, err)
 	c.mu.Unlock()
 }
 
 // incrAndIsDone
 // 已完成任务+1, 并检查任务是否全部完成
-func (c *WorkerGroup) incrAndIsDone() bool {
+func (c *WorkerGroup[T]) incrAndIsDone() bool {
 	c.mu.Lock()
 	c.taskDone++
 	ok := c.taskDone == c.taskTotal
@@ -66,21 +86,22 @@ func (c *WorkerGroup) incrAndIsDone() bool {
 	return ok
 }
 
-func (c *WorkerGroup) do(job Job) {
-	if !isCanceled(c.config.Context) {
-		c.callOnError(c.config.Caller(job))
+func (c *WorkerGroup[T]) do(args T) {
+	if err := recoveryCaller(args, c.OnMessage); err != nil {
+		c.appendError(err)
 	}
+
 	if c.incrAndIsDone() {
 		c.done <- true
 		return
 	}
-	if nextJob := c.getJob(); nextJob != nil {
-		c.do(nextJob.(Job))
+	if nextJob, ok := c.getJob(); ok {
+		c.do(nextJob)
 	}
 }
 
 // Len 获取队列中剩余任务数量
-func (c *WorkerGroup) Len() int {
+func (c *WorkerGroup[T]) Len() int {
 	c.mu.Lock()
 	x := len(c.q)
 	c.mu.Unlock()
@@ -88,27 +109,40 @@ func (c *WorkerGroup) Len() int {
 }
 
 // AddJob 往任务队列中追加任务
-func (c *WorkerGroup) AddJob(jobs ...Job) {
+func (c *WorkerGroup[T]) Push(eles ...T) {
 	c.mu.Lock()
-	c.taskTotal += int64(len(jobs))
-	c.q = append(c.q, jobs...)
+	c.taskTotal += int64(len(eles))
+	c.q = append(c.q, eles...)
 	c.mu.Unlock()
 }
 
-// StartAndWait 启动并等待所有任务执行完成
-func (c *WorkerGroup) StartAndWait() error {
+// Update 线程安全操作
+func (c *WorkerGroup[T]) Update(f func()) {
+	c.mu.Lock()
+	f()
+	c.mu.Unlock()
+}
+
+// Start 启动并等待所有任务执行完成
+func (c *WorkerGroup[T]) Start() error {
 	var taskTotal = int64(c.Len())
 	if taskTotal == 0 {
 		return nil
 	}
 
-	var co = min(c.config.Concurrency, taskTotal)
+	var co = min(c.concurrency, taskTotal)
 	for i := int64(0); i < co; i++ {
-		if item := c.getJob(); item != nil {
-			go c.do(item.(Job))
+		if item, ok := c.getJob(); ok {
+			go c.do(item)
 		}
 	}
 
-	<-c.done
-	return c.err
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	select {
+	case <-c.done:
+		return c.err.ErrorOrNil()
+	case <-ctx.Done():
+		return ErrWaitTimeout
+	}
 }
