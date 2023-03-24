@@ -30,6 +30,7 @@ func TestNewTaskGroup(t *testing.T) {
 		w := NewWorkerGroup[int64]()
 		w.OnMessage = func(args int64) error {
 			atomic.AddInt64(&sum, args)
+			w.Update(func() {})
 			return nil
 		}
 		for i := int64(1); i <= 100; i++ {

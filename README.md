@@ -11,68 +11,9 @@
 GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
 ```
 
-#### Feature
-
-- 最大并发协程数量限制
-- 支持 `contex.Contex`
-- 支持 `panic recover`, 返回包含错误堆栈的 `error`
-- 任务调度不依赖 `time.Ticker`
-
 #### Usage
 
-- WorkerQueue 工作队列, 可以不断往里面添加任务, 一旦有CPU资源空闲就去执行
-
-```go
-package main
-
-import (
-	"fmt"
-	"github.com/lxzan/concurrency"
-	"time"
-)
-
-func Add(args interface{}) error {
-	arr := args.([]int)
-	ans := 0
-	for _, item := range arr {
-		ans += item
-	}
-	fmt.Printf("args=%v, ans=%d\n", args, ans)
-	return nil
-}
-
-func Mul(args interface{}) error {
-	arr := args.([]int)
-	ans := 1
-	for _, item := range arr {
-		ans *= item
-	}
-	fmt.Printf("args=%v, ans=%d\n", args, ans)
-	return nil
-}
-
-func main() {
-	args1 := []int{1, 3}
-	args2 := []int{1, 3, 5}
-	w := concurrency.NewWorkerQueue()
-	w.AddJob(
-		concurrency.Job{Args: args1, Do: Add},
-		concurrency.Job{Args: args1, Do: Mul},
-		concurrency.Job{Args: args2, Do: Add},
-		concurrency.Job{Args: args2, Do: Mul},
-	)
-	w.StopAndWait(30 * time.Second)
-}
-```
-
-```
-args=[1 3], ans=4
-args=[1 3 5], ans=15
-args=[1 3], ans=3
-args=[1 3 5], ans=9
-```
-
-- WorkerGroup 工作组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
+- WorkerGroup 任务组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
 
 ```go
 package main
@@ -85,22 +26,52 @@ import (
 
 func main() {
 	sum := int64(0)
-	w := concurrency.NewWorkerGroup()
+	w := concurrency.NewWorkerGroup[int64]()
 	for i := int64(1); i <= 10; i++ {
-		w.AddJob(concurrency.Job{
-			Args: i,
-			Do: func(args interface{}) error {
-				fmt.Printf("%v ", args)
-				atomic.AddInt64(&sum, args.(int64))
-				return nil
-			},
-		})
+		w.Push(i)
 	}
-	w.StartAndWait()
+	w.OnMessage = func(args int64) error {
+		fmt.Printf("%v ", args)
+		atomic.AddInt64(&sum, args)
+		return nil
+	}
+	w.Start()
 	fmt.Printf("sum=%d\n", sum)
 }
 ```
 
 ```
 4 5 6 7 8 9 10 1 3 2 sum=55
+```
+
+- WorkerQueue 任务队列, 可以不断往里面添加任务, 一旦有CPU资源空闲就去执行
+
+```go
+package main
+
+import (
+	"fmt"
+	"github.com/lxzan/concurrency"
+	"sync/atomic"
+	"time"
+)
+
+func main() {
+	sum := int64(0)
+	w := concurrency.NewWorkerQueue()
+	for i := int64(1); i <= 10; i++ {
+		var x = i
+		job := concurrency.FuncJob(func() {
+			fmt.Printf("%v ", x)
+			atomic.AddInt64(&sum, x)
+		})
+		w.Push(job)
+	}
+	w.Stop(time.Second)
+	fmt.Printf("sum=%d\n", sum)
+}
+```
+
+```
+3 9 10 4 1 6 8 5 2 7 sum=55
 ```

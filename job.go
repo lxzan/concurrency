@@ -3,25 +3,25 @@ package concurrency
 type (
 	// 任务抽象
 	Job interface {
-		Do() error
+		Do()
 	}
 
 	// 无参数的快捷任务
-	QuickJob func() error
+	FuncJob func()
 )
 
 type parameterizedJob struct {
-	args []interface{}
-	do   func(args ...interface{}) error
+	args interface{}
+	do   func(args interface{})
 }
 
-func (f QuickJob) Do() error {
-	return f()
+func (f FuncJob) Do() {
+	f()
 }
 
 // 带参数任务
-func ParameterizedJob(f func(args ...interface{}) error, args ...interface{}) Job {
+func ParameterizedJob(args interface{}, f func(args interface{})) Job {
 	return &parameterizedJob{args: args, do: f}
 }
 
-func (c *parameterizedJob) Do() error { return c.do(c.args...) }
+func (c *parameterizedJob) Do() { c.do(c.args) }
