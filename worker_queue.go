@@ -9,15 +9,15 @@ import (
 	"time"
 )
 
-type (
-	WorkerQueue struct {
-		mu             *sync.Mutex                 // 锁
-		q              []Job                       // 任务队列
-		maxConcurrency int64                       // 最大并发
-		curConcurrency int64                       // 当前并发
-		OnRecovery     func(exception interface{}) // 异常处理
-	}
-)
+var DefaultQueue = NewWorkerQueue().SetConcurrency(64)
+
+type WorkerQueue struct {
+	mu             *sync.Mutex                 // 锁
+	q              []Job                       // 任务队列
+	maxConcurrency int64                       // 最大并发
+	curConcurrency int64                       // 当前并发
+	OnRecovery     func(exception interface{}) // 异常处理
+}
 
 // NewWorkerQueue 创建一个任务队列
 func NewWorkerQueue() *WorkerQueue {
