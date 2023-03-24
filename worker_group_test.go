@@ -3,8 +3,10 @@ package concurrency
 import (
 	"errors"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestNewTaskGroup(t *testing.T) {
@@ -48,24 +50,22 @@ func TestNewTaskGroup(t *testing.T) {
 		as.Error(err)
 	})
 
-	//t.Run("timeout", func(t *testing.T) {
-	//	var mu = &sync.Mutex{}
-	//	var list = make([]int, 0)
-	//	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	//	defer cancel()
-	//	ctl := NewWorkerGroup[int]().WithContext(ctx).WithConcurrency(2)
-	//	ctl.Push(1, 3, 5, 7, 9)
-	//	ctl.OnMessage = func(args int) error {
-	//		mu.Lock()
-	//		list = append(list, args)
-	//		mu.Unlock()
-	//		time.Sleep(2 * time.Second)
-	//		return nil
-	//	}
-	//	err := ctl.Start()
-	//	as.NoError(err)
-	//	as.ElementsMatch(list, []int{1, 3})
-	//})
+	t.Run("timeout", func(t *testing.T) {
+		var mu = &sync.Mutex{}
+		var list = make([]int, 0)
+		ctl := NewWorkerGroup[int]().SetConcurrency(2).SetTimeout(time.Second)
+		ctl.Push(1, 3, 5, 7, 9)
+		ctl.OnMessage = func(args int) error {
+			mu.Lock()
+			list = append(list, args)
+			mu.Unlock()
+			time.Sleep(2 * time.Second)
+			return nil
+		}
+		err := ctl.Start()
+		as.Error(err)
+		as.ElementsMatch(list, []int{1, 3})
+	})
 
 	t.Run("recovery", func(t *testing.T) {
 		ctl := NewWorkerGroup[int]()

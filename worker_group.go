@@ -58,6 +58,12 @@ func (c *WorkerGroup[T]) SetTimeout(d time.Duration) *WorkerGroup[T] {
 	return c
 }
 
+func (c *WorkerGroup[T]) clear() {
+	c.mu.Lock()
+	c.q = c.q[:0]
+	c.mu.Unlock()
+}
+
 func (c *WorkerGroup[T]) getJob() (v T, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -143,6 +149,7 @@ func (c *WorkerGroup[T]) Start() error {
 	case <-c.done:
 		return c.err.ErrorOrNil()
 	case <-ctx.Done():
+		c.clear()
 		return ErrWaitTimeout
 	}
 }
