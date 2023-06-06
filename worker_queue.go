@@ -53,11 +53,11 @@ func (c *WorkerQueue) getJob(delta int64) Job {
 	return result
 }
 
-// 递归地执行任务
+// 循环执行任务
 func (c *WorkerQueue) do(job Job) {
-	c.call(job)
-	if nextJob := c.getJob(-1); nextJob != nil {
-		go c.do(nextJob)
+	for job != nil {
+		c.call(job)
+		job = c.getJob(-1)
 	}
 }
 
