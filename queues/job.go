@@ -1,7 +1,7 @@
-package concurrency
+package queues
 
 type (
-	// 任务抽象
+	// 任务接口
 	Job interface {
 		Do()
 	}

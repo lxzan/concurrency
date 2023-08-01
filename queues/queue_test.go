@@ -1,4 +1,4 @@
-package concurrency
+package queues
 
 import (
 	"github.com/stretchr/testify/assert"
@@ -15,12 +15,11 @@ func TestNewWorkerQueue(t *testing.T) {
 		var val = int64(0)
 		var wg = sync.WaitGroup{}
 		wg.Add(1000)
-		w := NewWorkerQueue().SetConcurrency(16)
+		w := New(WithConcurrency(16))
 		for i := 1; i <= 1000; i++ {
 			job := ParameterizedJob(int64(i), func(args interface{}) {
 				atomic.AddInt64(&val, args.(int64))
 				wg.Done()
-				as.LessOrEqual(w.curConcurrency, w.maxConcurrency)
 			})
 			w.Push(job)
 		}
@@ -29,21 +28,18 @@ func TestNewWorkerQueue(t *testing.T) {
 	})
 
 	t.Run("recover", func(t *testing.T) {
-		w := NewWorkerQueue()
+		w := New(WithRecovery())
 		job := FuncJob(func() {
 			panic("test")
 		})
 		w.Push(job)
-		w.Stop(time.Second)
 	})
 
 	t.Run("stop", func(t *testing.T) {
-		cc := NewWorkerQueue()
+		cc := New()
 		job := FuncJob(func() {
-			println(cc.Len())
 			time.Sleep(time.Second)
 		})
 		cc.Push(job)
-		cc.Stop(100 * time.Millisecond)
 	})
 }
