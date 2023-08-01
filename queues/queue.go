@@ -7,7 +7,7 @@ import (
 
 const defaultConcurrency = 8
 
-var DefaultQueue = New(WithConcurrency(64))
+var DefaultQueue = New(WithConcurrency(64), WithRecovery())
 
 type (
 	options struct {
@@ -25,14 +25,14 @@ type (
 		caller         Caller      // 异常处理
 	}
 
-	Queues struct {
+	Queue struct {
 		options *options
 		serial  int64
 		qs      []*queue
 	}
 )
 
-func New(opts ...Option) *Queues {
+func New(opts ...Option) *Queue {
 	o := &options{
 		concurrency: defaultConcurrency,
 		caller:      func(f func()) { f() },
@@ -45,10 +45,10 @@ func New(opts ...Option) *Queues {
 	for i := int64(0); i < o.concurrency; i++ {
 		qs[i] = newQueue(o)
 	}
-	return &Queues{options: o, qs: qs}
+	return &Queue{options: o, qs: qs}
 }
 
-func (c *Queues) Push(job Job) {
+func (c *Queue) Push(job Job) {
 	index := atomic.AddInt64(&c.serial, 1) & (c.options.concurrency - 1)
 	c.qs[index].push(job)
 }

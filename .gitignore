@@ -16,3 +16,4 @@ vendor/
 examples/
 .idea/
 .vacode/
+go.work
