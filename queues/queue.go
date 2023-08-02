@@ -2,6 +2,7 @@ package queues
 
 import (
 	"context"
+	"github.com/lxzan/concurrency/logs"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -19,9 +20,10 @@ type (
 		concurrency int64
 		timeout     time.Duration
 		caller      Caller
+		logger      logs.Logger
 	}
 
-	Caller func(f func())
+	Caller func(logger logs.Logger, f func())
 
 	queue struct {
 		mu             *sync.Mutex // 锁
@@ -29,6 +31,7 @@ type (
 		maxConcurrency int64       // 最大并发
 		curConcurrency int64       // 当前并发
 		caller         Caller      // 异常处理
+		logger         logs.Logger // 日志
 	}
 
 	Job func()
@@ -46,7 +49,8 @@ func New(opts ...Option) *Queue {
 	o := &options{
 		concurrency: defaultConcurrency,
 		timeout:     defaultTimeout,
-		caller:      func(f func()) { f() },
+		caller:      func(logger logs.Logger, f func()) { f() },
+		logger:      logs.DefaultLogger,
 	}
 	for _, f := range opts {
 		f(o)
@@ -98,6 +102,7 @@ func newQueue(o *options) *queue {
 		maxConcurrency: 1,
 		curConcurrency: 0,
 		caller:         o.caller,
+		logger:         o.logger,
 	}
 }
 
@@ -127,7 +132,7 @@ func (c *queue) getJob(delta int64) Job {
 // 循环执行任务
 func (c *queue) do(job Job) {
 	for job != nil {
-		c.caller(job)
+		c.caller(c.logger, job)
 		job = c.getJob(-1)
 	}
 }

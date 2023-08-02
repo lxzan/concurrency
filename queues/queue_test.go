@@ -1,6 +1,7 @@
 package queues
 
 import (
+	"github.com/lxzan/concurrency/logs"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
@@ -28,7 +29,7 @@ func TestNewWorkerQueue(t *testing.T) {
 	})
 
 	t.Run("recover", func(t *testing.T) {
-		w := New(WithRecovery())
+		w := New(WithRecovery(), WithLogger(logs.DefaultLogger))
 		w.Push(func() {
 			panic("test")
 		})

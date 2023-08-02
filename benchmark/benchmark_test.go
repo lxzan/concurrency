@@ -11,7 +11,7 @@ import (
 const (
 	Concurrency = 8
 	M           = 1000
-	N           = 14
+	N           = 13
 )
 
 func Benchmark_Fib(b *testing.B) {
