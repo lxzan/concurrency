@@ -10,13 +10,27 @@ import (
 
 const (
 	Concurrency = 8
-	M           = 1000
+	M           = 10000
 	N           = 13
 )
 
 func Benchmark_Fib(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		fib(N)
+	}
+}
+
+func Benchmark_StdGo(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		wg.Add(M)
+		for j := 0; j < M; j++ {
+			go func() {
+				fib(N)
+				wg.Done()
+			}()
+		}
+		wg.Wait()
 	}
 }
 
