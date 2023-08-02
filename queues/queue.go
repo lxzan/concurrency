@@ -1,17 +1,23 @@
 package queues
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
-const defaultConcurrency = 8
+const (
+	defaultConcurrency = 8
+	defaultTimeout     = 30 * time.Second
+)
 
 var DefaultQueue = New(WithConcurrency(16), WithRecovery())
 
 type (
 	options struct {
 		concurrency int64
+		timeout     time.Duration
 		caller      Caller
 	}
 
@@ -34,9 +40,12 @@ type (
 	}
 )
 
+// New
+// 创建N条并发度为1的任务队列
 func New(opts ...Option) *Queue {
 	o := &options{
 		concurrency: defaultConcurrency,
+		timeout:     defaultTimeout,
 		caller:      func(f func()) { f() },
 	}
 	for _, f := range opts {
@@ -50,9 +59,36 @@ func New(opts ...Option) *Queue {
 	return &Queue{options: o, qs: qs}
 }
 
+// Push 追加任务
 func (c *Queue) Push(job Job) {
 	index := atomic.AddInt64(&c.serial, 1) & (c.options.concurrency - 1)
 	c.qs[index].push(job)
+}
+
+// Stop 停止
+// 可能需要等待一段时间, 直到所有任务执行完成或者超时
+func (c *Queue) Stop() {
+	ctx, cancel := context.WithTimeout(context.Background(), c.options.timeout)
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer func() {
+		cancel()
+		ticker.Stop()
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+			sum := 0
+			for _, item := range c.qs {
+				sum += item.len()
+			}
+			if sum == 0 {
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 // newQueue 创建一个任务队列
@@ -63,6 +99,12 @@ func newQueue(o *options) *queue {
 		curConcurrency: 0,
 		caller:         o.caller,
 	}
+}
+
+func (c *queue) len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.q)
 }
 
 // 获取一个任务
@@ -82,11 +124,11 @@ func (c *queue) getJob(delta int64) Job {
 	return result
 }
 
-// 递归地执行任务
+// 循环执行任务
 func (c *queue) do(job Job) {
-	c.caller(job)
-	if nextJob := c.getJob(-1); nextJob != nil {
-		go c.do(nextJob)
+	for job != nil {
+		c.caller(job)
+		job = c.getJob(-1)
 	}
 }
 

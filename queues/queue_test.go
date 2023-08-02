@@ -34,10 +34,25 @@ func TestNewWorkerQueue(t *testing.T) {
 		})
 	})
 
-	t.Run("stop", func(t *testing.T) {
-		cc := New()
+	t.Run("stop timeout", func(t *testing.T) {
+		cc := New(WithTimeout(time.Millisecond))
+		sum := int64(0)
 		cc.Push(func() {
 			time.Sleep(time.Second)
+			atomic.AddInt64(&sum, 1)
 		})
+		cc.Stop()
+		assert.Equal(t, int64(0), atomic.LoadInt64(&sum))
+	})
+
+	t.Run("stop graceful", func(t *testing.T) {
+		cc := New(WithTimeout(time.Second))
+		sum := int64(0)
+		cc.Push(func() {
+			time.Sleep(time.Millisecond)
+			atomic.AddInt64(&sum, 1)
+		})
+		cc.Stop()
+		assert.Equal(t, int64(1), atomic.LoadInt64(&sum))
 	})
 }

@@ -3,6 +3,7 @@ package queues
 import (
 	"log"
 	"runtime"
+	"time"
 	"unsafe"
 )
 
@@ -12,6 +13,13 @@ type Option func(o *options)
 func WithConcurrency(num int64) Option {
 	return func(o *options) {
 		o.concurrency = num
+	}
+}
+
+// WithTimeout 设置退出等待超时时间
+func WithTimeout(t time.Duration) Option {
+	return func(o *options) {
+		o.timeout = t
 	}
 }
 
