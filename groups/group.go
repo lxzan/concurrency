@@ -10,7 +10,7 @@ import (
 
 const (
 	defaultConcurrency = 8                // 默认并发度
-	defaultWaitTimeout = 60 * time.Second // 线程同步等待超时
+	defaultWaitTimeout = 60 * time.Second // 默认线程同步等待超时
 )
 
 var ErrWaitTimeout = errors.New("wait timeout")

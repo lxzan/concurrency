@@ -23,7 +23,7 @@ func WithConcurrency(num int64) Option {
 	}
 }
 
-// WithCancel 遇到错误放弃剩余任务的执行
+// WithCancel 设置遇到错误放弃执行剩余任务
 func WithCancel() Option {
 	return func(o *options) {
 		o.cancel = true

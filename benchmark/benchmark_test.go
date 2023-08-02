@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	Concurrency = 8
+	Concurrency = 16
 	M           = 10000
 	N           = 13
 )
