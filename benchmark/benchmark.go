@@ -1,15 +1,10 @@
 package benchmark
 
-const (
-	Concurrency = 8
-	M           = 1000
-	N           = 1000
-)
-
-func f() int {
-	sum := 0
-	for i := 0; i < N; i++ {
-		sum += i
+func fib(n int) int {
+	switch n {
+	case 0, 1:
+		return n
+	default:
+		return fib(n-1) + fib(n-2)
 	}
-	return sum
 }

@@ -7,7 +7,7 @@ import (
 
 const defaultConcurrency = 8
 
-var DefaultQueue = New(WithConcurrency(64), WithRecovery())
+var DefaultQueue = New(WithConcurrency(16), WithRecovery())
 
 type (
 	options struct {
@@ -24,6 +24,8 @@ type (
 		curConcurrency int64       // 当前并发
 		caller         Caller      // 异常处理
 	}
+
+	Job func()
 
 	Queue struct {
 		options *options
@@ -82,7 +84,7 @@ func (c *queue) getJob(delta int64) Job {
 
 // 递归地执行任务
 func (c *queue) do(job Job) {
-	c.caller(job.Do)
+	c.caller(job)
 	if nextJob := c.getJob(-1); nextJob != nil {
 		go c.do(nextJob)
 	}
