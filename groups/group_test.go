@@ -1,7 +1,7 @@
-package concurrency
+package groups
 
 import (
-	"errors"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"sync/atomic"
@@ -13,13 +13,13 @@ func TestNewTaskGroup(t *testing.T) {
 	as := assert.New(t)
 
 	t.Run("0 task", func(t *testing.T) {
-		cc := NewWorkerGroup[int]()
+		cc := New[int]()
 		err := cc.Start()
 		as.NoError(err)
 	})
 
 	t.Run("1 task", func(t *testing.T) {
-		cc := NewWorkerGroup[int]()
+		cc := New[int]()
 		cc.Push(0)
 		err := cc.Start()
 		as.NoError(err)
@@ -27,7 +27,7 @@ func TestNewTaskGroup(t *testing.T) {
 
 	t.Run("100 task", func(t *testing.T) {
 		sum := int64(0)
-		w := NewWorkerGroup[int64]()
+		w := New[int64]()
 		w.OnMessage = func(args int64) error {
 			atomic.AddInt64(&sum, args)
 			w.Update(func() {})
@@ -41,7 +41,7 @@ func TestNewTaskGroup(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
-		cc := NewWorkerGroup[int]()
+		cc := New[int]()
 		cc.Push(1)
 		cc.Push(2)
 		cc.OnMessage = func(args int) error {
@@ -54,7 +54,7 @@ func TestNewTaskGroup(t *testing.T) {
 	t.Run("timeout", func(t *testing.T) {
 		var mu = &sync.Mutex{}
 		var list = make([]int, 0)
-		ctl := NewWorkerGroup[int]().SetConcurrency(2).SetTimeout(time.Second)
+		ctl := New[int](WithConcurrency(2), WithTimeout(time.Second))
 		ctl.Push(1, 3, 5, 7, 9)
 		ctl.OnMessage = func(args int) error {
 			mu.Lock()
@@ -69,7 +69,7 @@ func TestNewTaskGroup(t *testing.T) {
 	})
 
 	t.Run("recovery", func(t *testing.T) {
-		ctl := NewWorkerGroup[int]()
+		ctl := New[int](WithRecovery())
 		ctl.Push(1)
 		ctl.Push(2)
 		ctl.OnMessage = func(args int) error {
@@ -79,5 +79,25 @@ func TestNewTaskGroup(t *testing.T) {
 		}
 		err := ctl.Start()
 		as.Error(err)
+	})
+
+	t.Run("cancel", func(t *testing.T) {
+		ctl := New[int](WithCancel(), WithConcurrency(1))
+		ctl.Push(1, 3, 5)
+		arr := make([]int, 0)
+		ctl.OnMessage = func(args int) error {
+			ctl.Update(func() {
+				arr = append(arr, args)
+			})
+			switch args {
+			case 3:
+				return errors.New("3")
+			default:
+				return nil
+			}
+		}
+		err := ctl.Start()
+		as.Error(err)
+		as.ElementsMatch(arr, []int{1, 3})
 	})
 }

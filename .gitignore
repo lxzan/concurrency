@@ -16,3 +16,5 @@ vendor/
 examples/
 .idea/
 .vacode/
+go.work
+go.work.sum

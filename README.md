@@ -5,7 +5,7 @@
 [1]: https://codecov.io/gh/lxzan/concurrency/branch/master/graph/badge.svg
 [2]: https://codecov.io/gh/lxzan/concurrency
 
-### install
+### Install
 
 ```bash
 GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
@@ -13,20 +13,21 @@ GOPROXY=https://goproxy.cn go get -v github.com/lxzan/concurrency@latest
 
 #### Usage
 
-- WorkerGroup 任务组, 添加一组任务, 等待执行完成, 可以很好的替代`WaitGroup`.
+##### 任务组
+> 添加一组任务, 等待它们全部执行完成
 
 ```go
 package main
 
 import (
 	"fmt"
-	"github.com/lxzan/concurrency"
+	"github.com/lxzan/concurrency/groups"
 	"sync/atomic"
 )
 
 func main() {
 	sum := int64(0)
-	w := concurrency.NewWorkerGroup[int64]()
+	w := groups.New[int64]()
 	for i := int64(1); i <= 10; i++ {
 		w.Push(i)
 	}
@@ -44,34 +45,49 @@ func main() {
 4 5 6 7 8 9 10 1 3 2 sum=55
 ```
 
-- WorkerQueue 任务队列, 可以不断往里面添加任务, 一旦有CPU资源空闲就去执行
+##### 任务队列
+> 把任务加入队列, 异步执行
 
 ```go
 package main
 
 import (
 	"fmt"
-	"github.com/lxzan/concurrency"
+	"github.com/lxzan/concurrency/queues"
 	"sync/atomic"
-	"time"
 )
 
 func main() {
 	sum := int64(0)
-	w := concurrency.NewWorkerQueue()
+	w := queues.New()
 	for i := int64(1); i <= 10; i++ {
 		var x = i
-		job := concurrency.FuncJob(func() {
+		w.Push(func() {
 			fmt.Printf("%v ", x)
 			atomic.AddInt64(&sum, x)
 		})
-		w.Push(job)
 	}
-	w.Stop(time.Second)
+	w.Stop()
 	fmt.Printf("sum=%d\n", sum)
 }
 ```
 
 ```
 3 9 10 4 1 6 8 5 2 7 sum=55
+```
+
+### Benchmark
+
+```
+go test -benchmem -run=^$ -bench . github.com/lxzan/concurrency/benchmark
+goos: darwin
+goarch: arm64
+pkg: github.com/lxzan/concurrency/benchmark
+Benchmark_Fib-8          1485490               775.0 ns/op             0 B/op          0 allocs/op
+Benchmark_StdGo-8            388           3066459 ns/op          160537 B/op      10002 allocs/op
+Benchmark_Queues-8           457           2602319 ns/op          324489 B/op      11061 allocs/op
+Benchmark_Ants-8             139           7337507 ns/op          160368 B/op      10004 allocs/op
+Benchmark_GoPool-8           264           4514672 ns/op          191897 B/op      10569 allocs/op
+PASS
+ok      github.com/lxzan/concurrency/benchmark  8.500s
 ```
