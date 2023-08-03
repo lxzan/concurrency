@@ -30,7 +30,7 @@ type singleQueue struct {
 	stopped        bool          // 是否关闭
 }
 
-func (c *singleQueue) Stop() {
+func (c *singleQueue) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer func() {
@@ -41,20 +41,20 @@ func (c *singleQueue) Stop() {
 	for {
 		select {
 		case <-ticker.C:
-			if c.doStop() {
-				return
+			if c.doStop(false) {
+				return nil
 			}
 		case <-ctx.Done():
-			c.doStop()
-			return
+			c.doStop(true)
+			return ErrStopTimeout
 		}
 	}
 }
 
-func (c *singleQueue) doStop() bool {
+func (c *singleQueue) doStop(force bool) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.q) == 0 {
+	if force || len(c.q) == 0 {
 		c.stopped = true
 		return true
 	}
@@ -99,4 +99,10 @@ func (c *singleQueue) Push(job Job) {
 	if item := c.getJob(0); item != nil {
 		go c.do(item)
 	}
+}
+
+func (c *singleQueue) len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.q)
 }

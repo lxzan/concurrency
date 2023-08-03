@@ -51,7 +51,7 @@ func Benchmark_QueuesSingle(b *testing.B) {
 }
 
 func Benchmark_QueuesMultiple(b *testing.B) {
-	q := queues.New(queues.WithConcurrency(Concurrency), queues.WithMultiple())
+	q := queues.New(queues.WithConcurrency(1), queues.WithMultiple(Concurrency))
 
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}

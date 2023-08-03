@@ -1,6 +1,7 @@
 package queues
 
 import (
+	"github.com/lxzan/concurrency/internal"
 	"github.com/lxzan/concurrency/logs"
 	"runtime"
 	"time"
@@ -10,9 +11,9 @@ import (
 type Option func(o *options)
 
 // WithConcurrency 设置最大并发
-func WithConcurrency(num int64) Option {
+func WithConcurrency(n int64) Option {
 	return func(o *options) {
-		o.concurrency = num
+		o.concurrency = n
 	}
 }
 
@@ -30,11 +31,12 @@ func WithLogger(logger logs.Logger) Option {
 	}
 }
 
-// WithMultiple 设置多重队列, 即n条并发度为1的队列
-// 默认是1条并发度为n的队列
-func WithMultiple() Option {
+// WithMultiple 设置多重队列, 降低锁竞争开销
+// 注意: n会被转化为pow(2,x)
+func WithMultiple(n int64) Option {
 	return func(o *options) {
 		o.multiple = true
+		o.size = internal.ToBinaryNumber(n)
 	}
 }
 

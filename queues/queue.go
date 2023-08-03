@@ -2,6 +2,7 @@ package queues
 
 import (
 	"github.com/lxzan/concurrency/logs"
+	"github.com/pkg/errors"
 	"time"
 )
 
@@ -10,9 +11,12 @@ const (
 	defaultTimeout     = 30 * time.Second
 )
 
+var ErrStopTimeout = errors.New("stop timeout")
+
 type (
 	options struct {
 		multiple    bool
+		size        int64
 		concurrency int64
 		timeout     time.Duration
 		caller      Caller
@@ -24,8 +28,12 @@ type (
 	Job func()
 
 	Queue interface {
+		// 追加任务
 		Push(job Job)
-		Stop()
+
+		// 停止
+		// 停止后调用Push不会产生任何效果
+		Stop() error
 	}
 )
 
