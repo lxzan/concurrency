@@ -83,11 +83,13 @@ go test -benchmem -run=^$ -bench . github.com/lxzan/concurrency/benchmark
 goos: darwin
 goarch: arm64
 pkg: github.com/lxzan/concurrency/benchmark
-Benchmark_Fib-8          1485490               775.0 ns/op             0 B/op          0 allocs/op
-Benchmark_StdGo-8            388           3066459 ns/op          160537 B/op      10002 allocs/op
-Benchmark_Queues-8           457           2602319 ns/op          324489 B/op      11061 allocs/op
-Benchmark_Ants-8             139           7337507 ns/op          160368 B/op      10004 allocs/op
-Benchmark_GoPool-8           264           4514672 ns/op          191897 B/op      10569 allocs/op
+Benchmark_Fib-8                  1534509               775.5 ns/op             0 B/op          0 allocs/op
+Benchmark_StdGo-8                    390           3078647 ns/op          160585 B/op      10002 allocs/op
+Benchmark_QueuesSingle-8             262           4388264 ns/op          345144 B/op      10898 allocs/op
+Benchmark_QueuesMultiple-8           470           2630718 ns/op          323923 B/op      10964 allocs/op
+Benchmark_Ants-8                     178           6708482 ns/op          160374 B/op      10004 allocs/op
+Benchmark_GoPool-8                   348           3487154 ns/op          194926 B/op      10511 allocs/op
 PASS
-ok      github.com/lxzan/concurrency/benchmark  8.500s
+ok      github.com/lxzan/concurrency/benchmark  10.107s
+
 ```

@@ -17,9 +17,9 @@ func WithTimeout(t time.Duration) Option {
 }
 
 // WithConcurrency 设置最大并发
-func WithConcurrency(num int64) Option {
+func WithConcurrency(n int64) Option {
 	return func(o *options) {
-		o.concurrency = num
+		o.concurrency = n
 	}
 }
 
