@@ -34,8 +34,24 @@ func Benchmark_StdGo(b *testing.B) {
 	}
 }
 
-func Benchmark_Queues(b *testing.B) {
+func Benchmark_QueuesSingle(b *testing.B) {
 	q := queues.New(queues.WithConcurrency(Concurrency))
+
+	for i := 0; i < b.N; i++ {
+		wg := &sync.WaitGroup{}
+		wg.Add(M)
+		for j := 0; j < M; j++ {
+			q.Push(func() {
+				fib(N)
+				wg.Done()
+			})
+		}
+		wg.Wait()
+	}
+}
+
+func Benchmark_QueuesMultiple(b *testing.B) {
+	q := queues.New(queues.WithConcurrency(1), queues.WithMultiple(Concurrency))
 
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}

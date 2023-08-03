@@ -11,9 +11,9 @@ import (
 type Option func(o *options)
 
 // WithConcurrency 设置最大并发
-func WithConcurrency(num int64) Option {
+func WithConcurrency(n int64) Option {
 	return func(o *options) {
-		o.concurrency = internal.ToBinaryNumber(num)
+		o.concurrency = n
 	}
 }
 
@@ -28,6 +28,15 @@ func WithTimeout(t time.Duration) Option {
 func WithLogger(logger logs.Logger) Option {
 	return func(o *options) {
 		o.logger = logger
+	}
+}
+
+// WithMultiple 设置多重队列, 降低锁竞争开销
+// 注意: n会被转化为pow(2,x)
+func WithMultiple(n int64) Option {
+	return func(o *options) {
+		o.multiple = true
+		o.size = internal.ToBinaryNumber(n)
 	}
 }
 
