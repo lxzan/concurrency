@@ -18,3 +18,22 @@ func ToBinaryNumber[T Integer](n T) T {
 	}
 	return x
 }
+
+func IsSameSlice[T comparable](a, b []T) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i, v := range a {
+		if v != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func SelectValue[T any](ok bool, a, b T) T {
+	if ok {
+		return a
+	}
+	return b
+}

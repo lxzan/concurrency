@@ -10,7 +10,7 @@ import (
 
 const (
 	Concurrency = 16
-	M           = 10000
+	M           = 1000
 	N           = 13
 )
 
@@ -35,9 +35,10 @@ func Benchmark_StdGo(b *testing.B) {
 }
 
 func Benchmark_QueuesSingle(b *testing.B) {
-	q := queues.New(queues.WithConcurrency(Concurrency))
-
 	for i := 0; i < b.N; i++ {
+		q := queues.New(
+			queues.WithConcurrency(Concurrency),
+		)
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
 		for j := 0; j < M; j++ {
@@ -51,9 +52,11 @@ func Benchmark_QueuesSingle(b *testing.B) {
 }
 
 func Benchmark_QueuesMultiple(b *testing.B) {
-	q := queues.New(queues.WithConcurrency(1), queues.WithMultiple(Concurrency))
-
 	for i := 0; i < b.N; i++ {
+		q := queues.New(
+			queues.WithConcurrency(1),
+			queues.WithSharding(Concurrency),
+		)
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
 		for j := 0; j < M; j++ {
@@ -67,10 +70,8 @@ func Benchmark_QueuesMultiple(b *testing.B) {
 }
 
 func Benchmark_Ants(b *testing.B) {
-	q, _ := ants.NewPool(Concurrency)
-	defer q.Release()
-
 	for i := 0; i < b.N; i++ {
+		q, _ := ants.NewPool(Concurrency)
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
 		for j := 0; j < M; j++ {
@@ -80,13 +81,13 @@ func Benchmark_Ants(b *testing.B) {
 			})
 		}
 		wg.Wait()
+		q.Release()
 	}
 }
 
 func Benchmark_GoPool(b *testing.B) {
-	q := gopool.NewPool("", Concurrency, gopool.NewConfig())
-
 	for i := 0; i < b.N; i++ {
+		q := gopool.NewPool("", Concurrency, gopool.NewConfig())
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
 		for j := 0; j < M; j++ {

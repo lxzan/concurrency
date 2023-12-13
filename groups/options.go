@@ -7,6 +7,13 @@ import (
 	"unsafe"
 )
 
+type options struct {
+	timeout     time.Duration
+	concurrency int64
+	caller      Caller
+	cancel      bool
+}
+
 type Option func(o *options)
 
 // WithTimeout 设置任务超时时间

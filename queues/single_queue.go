@@ -2,7 +2,7 @@ package queues
 
 import (
 	"context"
-	"github.com/lxzan/concurrency/logs"
+	"github.com/lxzan/concurrency/internal"
 	"sync"
 	"time"
 )
@@ -11,28 +11,29 @@ import (
 func newSingleQueue(o *options) *singleQueue {
 	return &singleQueue{
 		mu:             &sync.Mutex{},
-		maxConcurrency: o.concurrency,
+		conf:           o,
+		maxConcurrency: int32(o.concurrency),
 		curConcurrency: 0,
-		caller:         o.caller,
-		logger:         o.logger,
-		timeout:        o.timeout,
+		q:              internal.NewQueue[Job](8),
 	}
 }
 
 type singleQueue struct {
-	mu             *sync.Mutex   // 锁
-	q              []Job         // 任务队列
-	maxConcurrency int64         // 最大并发
-	curConcurrency int64         // 当前并发
-	caller         Caller        // 异常处理
-	logger         logs.Logger   // 日志
-	timeout        time.Duration // 退出超时
-	stopped        bool          // 是否关闭
+	mu             *sync.Mutex // 锁
+	conf           *options
+	q              *internal.Queue[Job] // 任务队列
+	maxConcurrency int32                // 最大并发
+	curConcurrency int32                // 当前并发
+	stopped        bool                 // 是否关闭
 }
 
-func (c *singleQueue) Stop() error {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
-	ticker := time.NewTicker(50 * time.Millisecond)
+func (c *singleQueue) Stop(ctx context.Context) error {
+	if !c.cas(false, true) {
+		return nil
+	}
+
+	ctx1, cancel := context.WithTimeout(ctx, c.conf.timeout)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer func() {
 		cancel()
 		ticker.Stop()
@@ -41,68 +42,70 @@ func (c *singleQueue) Stop() error {
 	for {
 		select {
 		case <-ticker.C:
-			if c.doStop(false) {
+			if c.finish() {
 				return nil
 			}
-		case <-ctx.Done():
-			c.doStop(true)
-			return ErrStopTimeout
+		case <-ctx1.Done():
+			if c.finish() {
+				return nil
+			}
+			return ctx1.Err()
 		}
 	}
 }
 
-func (c *singleQueue) doStop(force bool) bool {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	if force || len(c.q) == 0 {
-		c.stopped = true
-		return true
-	}
-	return false
-}
-
 // 获取一个任务
-func (c *singleQueue) getJob(delta int64) Job {
+func (c *singleQueue) getJob(newJob Job, delta int32) Job {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+
+	if !c.stopped && newJob != nil {
+		c.q.Push(newJob)
+	}
 	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
 	}
-	if n := len(c.q); n == 0 {
-		return nil
+	if job := c.q.Pop(); job != nil {
+		c.curConcurrency++
+		return job
 	}
-	var result = c.q[0]
-	c.q = c.q[1:]
-	c.curConcurrency++
-	return result
+	return nil
 }
 
 // 循环执行任务
 func (c *singleQueue) do(job Job) {
 	for job != nil {
-		c.caller(c.logger, job)
-		job = c.getJob(-1)
+		c.conf.caller(c.conf.logger, job)
+		job = c.getJob(nil, -1)
 	}
 }
 
-// push 追加任务, 有资源空闲的话会立即执行
+// Push 追加任务, 有资源空闲的话会立即执行
 func (c *singleQueue) Push(job Job) {
-	c.mu.Lock()
-	if c.stopped {
-		c.mu.Unlock()
-		return
-	}
-
-	c.q = append(c.q, job)
-	c.mu.Unlock()
-	if item := c.getJob(0); item != nil {
-		go c.do(item)
+	if nextJob := c.getJob(job, 0); nextJob != nil {
+		go c.do(nextJob)
 	}
 }
 
-func (c *singleQueue) len() int {
+func (c *singleQueue) Len() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return len(c.q)
+	return c.q.Len()
+}
+
+func (c *singleQueue) finish() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.q.Len()+int(c.curConcurrency) == 0
+}
+
+func (c *singleQueue) cas(old, new bool) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.stopped == old {
+		c.stopped = new
+		return true
+	}
+	return false
 }
