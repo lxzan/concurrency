@@ -10,16 +10,14 @@ import (
 // 创建一条任务队列
 func newSingleQueue(o *options) *singleQueue {
 	return &singleQueue{
-		mu:             &sync.Mutex{},
 		conf:           o,
 		maxConcurrency: int32(o.concurrency),
-		curConcurrency: 0,
 		q:              internal.NewQueue[Job](8),
 	}
 }
 
 type singleQueue struct {
-	mu             *sync.Mutex // 锁
+	mu             sync.Mutex // 锁
 	conf           *options
 	q              *internal.Queue[Job] // 任务队列
 	maxConcurrency int32                // 最大并发

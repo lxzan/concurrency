@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"container/list"
 	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
@@ -81,41 +82,57 @@ func TestQueue_Pop(t *testing.T) {
 	q.Push(5)
 	q.Pop()
 
-	var list []int
+	var arr []int
 	q.Range(func(v int) bool {
-		list = append(list, v)
+		arr = append(arr, v)
 		return true
 	})
 	assert.Equal(t, q.Front(), 3)
-	assert.True(t, IsSameSlice(list, []int{3, 4, 5}))
+	assert.True(t, IsSameSlice(arr, []int{3, 4, 5}))
 	assert.Equal(t, len(q.elements), 5)
 	assert.Equal(t, q.stack.Len(), 1)
 }
 
-func BenchmarkQueue_Push(b *testing.B) {
-	const count = 1000
-	for i := 0; i < b.N; i++ {
-		var q = NewQueue[int](count)
-		for j := 0; j < count; j++ {
-			q.Push(j)
+func TestQueue_Random(t *testing.T) {
+	var count = 10000
+	var q = NewQueue[int](0)
+	var linkedlist = list.New()
+	for i := 0; i < count; i++ {
+		var flag = rand.Intn(4)
+		var val = rand.Int()
+		switch flag {
+		case 0, 1, 2:
+			q.Push(val)
+			linkedlist.PushBack(val)
+		default:
+			if q.Len() > 0 {
+				q.Pop()
+				linkedlist.Remove(linkedlist.Front())
+			}
 		}
+	}
+
+	for i := linkedlist.Front(); i != nil; i = i.Next() {
+		var val = q.Pop()
+		assert.Equal(t, i.Value, val)
 	}
 }
 
 func BenchmarkQueue_PushAndPop(b *testing.B) {
 	const count = 1000
+	var q = NewQueue[int](count)
 	for i := 0; i < b.N; i++ {
-		var q = NewQueue[int](count)
-		for j := 0; j < count; j++ {
+		for j := 0; j < count/4; j++ {
 			q.Push(j)
 		}
-
-		for j := 0; j < count/2; j++ {
+		for j := 0; j < count/4; j++ {
 			q.Pop()
 		}
-
-		for j := 0; j < count/2; j++ {
+		for j := 0; j < count/4; j++ {
 			q.Push(j)
+		}
+		for j := 0; j < count/4; j++ {
+			q.Pop()
 		}
 	}
 }

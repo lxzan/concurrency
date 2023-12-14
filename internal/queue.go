@@ -43,6 +43,12 @@ func (c *Queue[T]) getElement() *element[T] {
 	return v
 }
 
+func (c *Queue[T]) Reset() {
+	c.head, c.tail, c.length = 0, 0, 0
+	c.stack = c.stack[:0]
+	c.elements = c.elements[:1]
+}
+
 func (c *Queue[T]) Len() int {
 	return c.length
 }
@@ -83,13 +89,14 @@ func (c *Queue[T]) Pop() (value T) {
 	}
 
 	c.length--
+	value = ele.Value
+	c.stack.Push(ele.addr)
+	*ele = c.template
 	if c.length == 0 {
 		c.tail = 0
+		c.Reset()
 	}
 
-	c.stack.Push(ele.addr)
-	value = ele.Value
-	*ele = c.template
 	return value
 }
 
