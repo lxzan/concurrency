@@ -10,9 +10,16 @@ import (
 
 const (
 	Concurrency = 16
-	M           = 10000
+	M           = 1000
 	N           = 13
 )
+
+func newJob(wg *sync.WaitGroup) func() {
+	return func() {
+		fib(N)
+		wg.Done()
+	}
+}
 
 func Benchmark_Fib(b *testing.B) {
 	for i := 0; i < b.N; i++ {
@@ -24,43 +31,43 @@ func Benchmark_StdGo(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
+		job := newJob(wg)
 		for j := 0; j < M; j++ {
-			go func() {
-				fib(N)
-				wg.Done()
-			}()
+			go job()
 		}
 		wg.Wait()
 	}
 }
 
 func Benchmark_QueuesSingle(b *testing.B) {
-	q := queues.New(queues.WithConcurrency(Concurrency))
+	q := queues.New(
+		queues.WithConcurrency(Concurrency),
+		queues.WithSharding(1),
+	)
 
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
+		job := newJob(wg)
 		for j := 0; j < M; j++ {
-			q.Push(func() {
-				fib(N)
-				wg.Done()
-			})
+			q.Push(job)
 		}
 		wg.Wait()
 	}
 }
 
 func Benchmark_QueuesMultiple(b *testing.B) {
-	q := queues.New(queues.WithConcurrency(1), queues.WithMultiple(Concurrency))
+	q := queues.New(
+		queues.WithConcurrency(1),
+		queues.WithSharding(Concurrency),
+	)
 
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
+		job := newJob(wg)
 		for j := 0; j < M; j++ {
-			q.Push(func() {
-				fib(N)
-				wg.Done()
-			})
+			q.Push(job)
 		}
 		wg.Wait()
 	}
@@ -73,11 +80,9 @@ func Benchmark_Ants(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
+		job := newJob(wg)
 		for j := 0; j < M; j++ {
-			q.Submit(func() {
-				fib(N)
-				wg.Done()
-			})
+			q.Submit(job)
 		}
 		wg.Wait()
 	}
@@ -89,11 +94,9 @@ func Benchmark_GoPool(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		wg := &sync.WaitGroup{}
 		wg.Add(M)
+		job := newJob(wg)
 		for j := 0; j < M; j++ {
-			q.Go(func() {
-				fib(N)
-				wg.Done()
-			})
+			q.Go(job)
 		}
 		wg.Wait()
 	}

@@ -13,16 +13,7 @@ const (
 	defaultWaitTimeout = 60 * time.Second // 默认线程同步等待超时
 )
 
-var ErrWaitTimeout = errors.New("wait timeout")
-
 type (
-	options struct {
-		timeout     time.Duration
-		concurrency int64
-		caller      Caller
-		cancel      bool
-	}
-
 	Caller func(args any, f func(any) error) error
 
 	Group[T any] struct {
@@ -34,6 +25,7 @@ type (
 		taskDone  int64              // 已完成任务数量
 		taskTotal int64              // 总任务数量
 		OnMessage func(args T) error // 任务处理
+		OnError   func(err error)    // 错误处理
 	}
 )
 
@@ -58,6 +50,7 @@ func New[T any](opts ...Option) *Group[T] {
 	c.OnMessage = func(args T) error {
 		return nil
 	}
+	c.OnError = func(err error) {}
 	return c
 }
 
@@ -105,6 +98,7 @@ func (c *Group[T]) do(args T) {
 		c.mu.Lock()
 		c.errs = append(c.errs, err)
 		c.mu.Unlock()
+		c.OnError(err)
 	}
 
 	if c.incrAndIsDone() {
@@ -161,6 +155,6 @@ func (c *Group[T]) Start() error {
 		return errors.Join(c.errs...)
 	case <-ctx.Done():
 		c.clear()
-		return ErrWaitTimeout
+		return ctx.Err()
 	}
 }
