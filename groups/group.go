@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/lxzan/concurrency/internal"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -13,48 +14,51 @@ const (
 	defaultWaitTimeout = 60 * time.Second // 默认线程同步等待超时
 )
 
+var defaultCaller Caller = func(args any, f func(any) error) error { return f(args) }
+
 type (
 	Caller func(args any, f func(any) error) error
 
 	Group[T any] struct {
-		options   *options
-		mu        *sync.Mutex        // 锁
-		errs      []error            // 错误
-		done      chan bool          // 信号
-		q         []T                // 任务队列
-		taskDone  int64              // 已完成任务数量
-		taskTotal int64              // 总任务数量
-		OnMessage func(args T) error // 任务处理
-		OnError   func(err error)    // 错误处理
+		options    *options           // 配置
+		mu         sync.Mutex         // 锁
+		ctx        context.Context    // 上下文
+		cancelFunc context.CancelFunc // 取消函数
+		canceled   atomic.Uint32      // 是否已取消
+		errs       []error            // 错误
+		done       chan bool          // 完成信号
+		q          []T                // 任务队列
+		taskDone   int64              // 已完成任务数量
+		taskTotal  int64              // 总任务数量
+		OnMessage  func(args T) error // 任务处理
+		OnError    func(err error)    // 错误处理
 	}
 )
 
 // New 新建一个任务集
 func New[T any](opts ...Option) *Group[T] {
-	o := &options{
-		timeout:     defaultWaitTimeout,
-		concurrency: defaultConcurrency,
-		caller:      func(args any, f func(any) error) error { return f(args) },
-	}
+	o := new(options)
+	opts = append(opts, withInitialize())
 	for _, f := range opts {
 		f(o)
 	}
 
 	c := &Group[T]{
 		options:  o,
-		mu:       &sync.Mutex{},
 		q:        make([]T, 0),
 		taskDone: 0,
 		done:     make(chan bool),
 	}
+	c.ctx, c.cancelFunc = context.WithTimeout(context.Background(), o.timeout)
 	c.OnMessage = func(args T) error {
 		return nil
 	}
 	c.OnError = func(err error) {}
+
 	return c
 }
 
-func (c *Group[T]) clear() {
+func (c *Group[T]) clearJob() {
 	c.mu.Lock()
 	c.q = c.q[:0]
 	c.mu.Unlock()
@@ -82,19 +86,21 @@ func (c *Group[T]) incrAndIsDone() bool {
 	return ok
 }
 
-func (c *Group[T]) hasError() bool {
+func (c *Group[T]) getError() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	return len(c.errs) > 0
+	return errors.Join(c.errs...)
+}
+
+func (c *Group[T]) jobFunc(v any) error {
+	if c.canceled.Load() == 1 {
+		return nil
+	}
+	return c.OnMessage(v.(T))
 }
 
 func (c *Group[T]) do(args T) {
-	if err := c.options.caller(args, func(v any) error {
-		if c.options.cancel && c.hasError() {
-			return nil
-		}
-		return c.OnMessage(v.(T))
-	}); err != nil {
+	if err := c.options.caller(args, c.jobFunc); err != nil {
 		c.mu.Lock()
 		c.errs = append(c.errs, err)
 		c.mu.Unlock()
@@ -117,6 +123,13 @@ func (c *Group[T]) Len() int {
 	x := len(c.q)
 	c.mu.Unlock()
 	return x
+}
+
+// Cancel 取消队列中剩余任务的执行
+func (c *Group[T]) Cancel() {
+	if c.canceled.CompareAndSwap(0, 1) {
+		c.cancelFunc()
+	}
 }
 
 // Push 往任务队列中追加任务
@@ -148,13 +161,13 @@ func (c *Group[T]) Start() error {
 		}
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), c.options.timeout)
-	defer cancel()
+	defer c.cancelFunc()
+
 	select {
 	case <-c.done:
-		return errors.Join(c.errs...)
-	case <-ctx.Done():
-		c.clear()
-		return ctx.Err()
+		return c.getError()
+	case <-c.ctx.Done():
+		c.clearJob()
+		return c.ctx.Err()
 	}
 }
