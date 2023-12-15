@@ -1,6 +1,7 @@
 package groups
 
 import (
+	"github.com/lxzan/concurrency/internal"
 	"github.com/pkg/errors"
 	"runtime"
 	"time"
@@ -11,7 +12,6 @@ type options struct {
 	timeout     time.Duration
 	concurrency int64
 	caller      Caller
-	cancel      bool
 }
 
 type Option func(o *options)
@@ -24,16 +24,9 @@ func WithTimeout(t time.Duration) Option {
 }
 
 // WithConcurrency 设置最大并发
-func WithConcurrency(n int64) Option {
+func WithConcurrency(n uint32) Option {
 	return func(o *options) {
-		o.concurrency = n
-	}
-}
-
-// WithCancel 设置遇到错误放弃执行剩余任务
-func WithCancel() Option {
-	return func(o *options) {
-		o.cancel = true
+		o.concurrency = int64(n)
 	}
 }
 
@@ -53,5 +46,13 @@ func WithRecovery() Option {
 
 			return f(args)
 		}
+	}
+}
+
+func withInitialize() Option {
+	return func(o *options) {
+		o.timeout = internal.SelectValue(o.timeout <= 0, defaultWaitTimeout, o.timeout)
+		o.concurrency = internal.SelectValue(o.concurrency <= 0, defaultConcurrency, o.concurrency)
+		o.caller = internal.SelectValue(o.caller == nil, defaultCaller, o.caller)
 	}
 }

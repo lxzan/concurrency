@@ -82,7 +82,7 @@ func TestNewTaskGroup(t *testing.T) {
 	})
 
 	t.Run("cancel", func(t *testing.T) {
-		ctl := New[int](WithCancel(), WithConcurrency(1))
+		ctl := New[int](WithConcurrency(1))
 		ctl.Push(1, 3, 5)
 		arr := make([]int, 0)
 		ctl.OnMessage = func(args int) error {
@@ -95,6 +95,9 @@ func TestNewTaskGroup(t *testing.T) {
 			default:
 				return nil
 			}
+		}
+		ctl.OnError = func(err error) {
+			ctl.Cancel()
 		}
 		err := ctl.Start()
 		as.Error(err)
