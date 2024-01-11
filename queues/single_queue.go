@@ -2,7 +2,7 @@ package queues
 
 import (
 	"context"
-	"github.com/lxzan/concurrency/internal"
+	"github.com/lxzan/dao/deque"
 	"sync"
 	"time"
 )
@@ -12,17 +12,17 @@ func newSingleQueue(o *options) *singleQueue {
 	return &singleQueue{
 		conf:           o,
 		maxConcurrency: int32(o.concurrency),
-		q:              internal.NewQueue[Job](8),
+		q:              deque.New[Job](8),
 	}
 }
 
 type singleQueue struct {
 	mu             sync.Mutex // 锁
 	conf           *options
-	q              *internal.Queue[Job] // 任务队列
-	maxConcurrency int32                // 最大并发
-	curConcurrency int32                // 当前并发
-	stopped        bool                 // 是否关闭
+	q              *deque.Deque[Job] // 任务队列
+	maxConcurrency int32             // 最大并发
+	curConcurrency int32             // 当前并发
+	stopped        bool              // 是否关闭
 }
 
 func (c *singleQueue) Stop(ctx context.Context) error {
@@ -58,13 +58,13 @@ func (c *singleQueue) getJob(newJob Job, delta int32) Job {
 	defer c.mu.Unlock()
 
 	if !c.stopped && newJob != nil {
-		c.q.Push(newJob)
+		c.q.PushBack(newJob)
 	}
 	c.curConcurrency += delta
 	if c.curConcurrency >= c.maxConcurrency {
 		return nil
 	}
-	if job := c.q.Pop(); job != nil {
+	if job := c.q.PopFront(); job != nil {
 		c.curConcurrency++
 		return job
 	}

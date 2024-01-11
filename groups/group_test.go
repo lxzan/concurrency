@@ -96,7 +96,7 @@ func TestNewTaskGroup(t *testing.T) {
 				return nil
 			}
 		}
-		ctl.OnError = func(err error) {
+		ctl.OnError = func(args int, err error) {
 			ctl.Cancel()
 		}
 		err := ctl.Start()

@@ -3,8 +3,9 @@ module github.com/lxzan/concurrency
 go 1.20
 
 require (
+	github.com/lxzan/dao v1.1.7
 	github.com/pkg/errors v0.9.1
-	github.com/stretchr/testify v1.8.1
+	github.com/stretchr/testify v1.8.4
 )
 
 require (
