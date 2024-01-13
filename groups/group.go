@@ -20,18 +20,18 @@ type (
 	Caller func(args any, f func(any) error) error
 
 	Group[T any] struct {
-		options    *options           // 配置
-		mu         sync.Mutex         // 锁
-		ctx        context.Context    // 上下文
-		cancelFunc context.CancelFunc // 取消函数
-		canceled   atomic.Uint32      // 是否已取消
-		errs       []error            // 错误
-		done       chan bool          // 完成信号
-		q          []T                // 任务队列
-		taskDone   int64              // 已完成任务数量
-		taskTotal  int64              // 总任务数量
-		OnMessage  func(args T) error // 任务处理
-		OnError    func(err error)    // 错误处理
+		options    *options                // 配置
+		mu         sync.Mutex              // 锁
+		ctx        context.Context         // 上下文
+		cancelFunc context.CancelFunc      // 取消函数
+		canceled   atomic.Uint32           // 是否已取消
+		errs       []error                 // 错误
+		done       chan bool               // 完成信号
+		q          []T                     // 任务队列
+		taskDone   int64                   // 已完成任务数量
+		taskTotal  int64                   // 总任务数量
+		OnMessage  func(args T) error      // 任务处理
+		OnError    func(args T, err error) // 错误处理
 	}
 )
 
@@ -53,7 +53,7 @@ func New[T any](opts ...Option) *Group[T] {
 	c.OnMessage = func(args T) error {
 		return nil
 	}
-	c.OnError = func(err error) {}
+	c.OnError = func(args T, err error) {}
 
 	return c
 }
@@ -104,7 +104,7 @@ func (c *Group[T]) do(args T) {
 		c.mu.Lock()
 		c.errs = append(c.errs, err)
 		c.mu.Unlock()
-		c.OnError(err)
+		c.OnError(args, err)
 	}
 
 	if c.incrAndIsDone() {
