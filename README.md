@@ -1,6 +1,6 @@
 ## Concurrency
 
-[![Build Status](https://github.com/lxzan/concurrency/workflows/Go%20Test/badge.svg?branch=master)](https://github.com/lxzan/concurrency/actions?query=branch%3Amaster) [![Coverage Statusd][1]][2]
+[![Build Status](https://github.com/lxzan/concurrency/actions/workflows/go.yml/badge.svg)](https://github.com/lxzan/concurrency/actions/workflows/go.yml) [![Coverage Statusd][1]][2]
 
 [1]: https://codecov.io/gh/lxzan/concurrency/branch/master/graph/badge.svg
 [2]: https://codecov.io/gh/lxzan/concurrency
