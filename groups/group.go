@@ -3,10 +3,11 @@ package groups
 import (
 	"context"
 	"errors"
-	"github.com/lxzan/concurrency/internal"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/lxzan/concurrency/internal"
 )
 
 const (
@@ -149,7 +150,10 @@ func (c *Group[T]) Update(f func()) {
 
 // Start 启动并等待所有任务执行完成
 func (c *Group[T]) Start() error {
-	var taskTotal = int64(c.Len())
+	c.mu.Lock()
+	var taskTotal = c.taskTotal
+	c.mu.Unlock()
+
 	if taskTotal == 0 {
 		return nil
 	}
