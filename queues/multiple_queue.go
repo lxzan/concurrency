@@ -53,5 +53,8 @@ func (c *multipleQueue) Stop(ctx context.Context) error {
 		}(c.qs[i])
 	}
 	wg.Wait()
-	return err.Load().err
+	if e := err.Load(); e != nil {
+		return e.err
+	}
+	return nil
 }
