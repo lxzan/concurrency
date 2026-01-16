@@ -2,8 +2,9 @@ package queues
 
 import (
 	"context"
-	"github.com/lxzan/concurrency/logs"
 	"time"
+
+	"github.com/lxzan/concurrency/logs"
 )
 
 var defaultCaller Caller = func(logger logs.Logger, f func()) { f() }
@@ -24,7 +25,8 @@ type (
 		Len() int
 
 		// Push 追加任务
-		Push(job Job)
+		// hashcode 可选参数，用于指定任务路由到的分片（仅对多队列有效）
+		Push(job Job, hashcode ...int64)
 
 		// Stop 停止
 		// 停止后不能追加新的任务, 队列中剩余的任务会继续执行, 到收到上下文信号为止.
