@@ -2,9 +2,10 @@ package queues
 
 import (
 	"context"
-	"github.com/lxzan/dao/deque"
 	"sync"
 	"time"
+
+	"github.com/lxzan/dao/deque"
 )
 
 // 创建一条任务队列
@@ -80,7 +81,8 @@ func (c *singleQueue) do(job Job) {
 }
 
 // Push 追加任务, 有资源空闲的话会立即执行
-func (c *singleQueue) Push(job Job) {
+// hashcode 参数对单队列无效，仅为接口兼容性保留
+func (c *singleQueue) Push(job Job, hashcode ...int64) {
 	if nextJob := c.getJob(job, 0); nextJob != nil {
 		go c.do(nextJob)
 	}

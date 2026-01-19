@@ -8,10 +8,9 @@ import (
 
 type (
 	multipleQueue struct {
-		conf    *options       // 参数
-		serial  atomic.Int64   // 序列号
-		stopped bool           // 是否关闭
-		qs      []*singleQueue // 子队列
+		conf   *options       // 参数
+		serial atomic.Int64   // 序列号
+		qs     []*singleQueue // 子队列
 	}
 
 	errWrapper struct{ err error }
@@ -35,9 +34,14 @@ func (c *multipleQueue) Len() int {
 }
 
 // Push 追加任务
-func (c *multipleQueue) Push(job Job) {
-	i := c.serial.Add(1) & (c.conf.sharding - 1)
-	c.qs[i].Push(job)
+func (c *multipleQueue) Push(job Job, hashcode ...int64) {
+	var index = int64(0)
+	if len(hashcode) == 0 {
+		index = c.serial.Add(1) & (c.conf.sharding - 1)
+	} else {
+		index = hashcode[0] & (c.conf.sharding - 1)
+	}
+	c.qs[index].Push(job)
 }
 
 // Stop 停止
